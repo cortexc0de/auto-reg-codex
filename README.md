@@ -1,95 +1,95 @@
-# OpenAI 自动注册系统 v2
+# Система автоматической регистрации OpenAI v2
 
-自动化注册 OpenAI 账号的 Web UI 系统，支持多种邮箱服务、并发批量注册、代理管理和账号管理。
+Веб-система для автоматизированной регистрации аккаунтов OpenAI с поддержкой множества почтовых сервисов, параллельной пакетной регистрации, управления прокси и аккаунтами.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 
-## 功能特性
+## Возможности
 
-- **多邮箱服务支持**
-  - Tempmail.lol（临时邮箱，无需配置）
-  - Outlook（IMAP + XOAUTH2，支持批量导入）
-  - 自定义域名（REST API）
+- **Поддержка нескольких почтовых сервисов**
+  - Tempmail.lol (временная почта, без настройки)
+  - Outlook (IMAP + XOAUTH2, поддержка массового импорта)
+  - Пользовательский домен (REST API)
 
-- **注册模式**
-  - 单次注册
-  - 批量注册（可配置数量和间隔时间）
-  - Outlook 批量注册（指定账户逐一注册）
+- **Режимы регистрации**
+  - Одиночная регистрация
+  - Пакетная регистрация (настраиваемое количество и интервал)
+  - Пакетная регистрация через Outlook (последовательно по указанным аккаунтам)
 
-- **并发控制**
-  - 流水线模式（Pipeline）：每隔 interval 秒启动新任务，限制最大并发数
-  - 并行模式（Parallel）：所有任务同时提交，Semaphore 控制最大并发
-  - 并发数可在 UI 自定义（1-50）
-  - 日志混合显示，带 `[任务N]` 前缀区分
+- **Управление параллелизмом**
+  - Pipeline-режим: запуск новой задачи каждые N секунд с ограничением максимального числа параллельных задач
+  - Parallel-режим: все задачи запускаются одновременно, Semaphore контролирует максимум параллельных
+  - Настраиваемый параллелизм (1–50) через UI
+  - Смешанный вывод логов с префиксом `[Задача N]`
 
-- **实时监控**
-  - WebSocket 实时日志推送
-  - 跨页面导航后自动重连
-  - 降级轮询备用方案
+- **Мониторинг в реальном времени**
+  - WebSocket для потоковой передачи логов
+  - Автоматическое переподключение при навигации между страницами
+  - Резервный режим опроса (polling)
 
-- **代理管理**
-  - 静态代理配置
-  - 动态代理（通过 API 每次获取新 IP）
-  - 代理列表（随机选取，记录使用时间）
+- **Управление прокси**
+  - Статическая конфигурация прокси
+  - Динамический прокси (получение нового IP через API)
+  - Список прокси (случайный выбор, отслеживание времени использования)
 
-- **账号管理**
-  - 查看、删除、批量操作
-  - Token 刷新与验证
-  - 导出（JSON / CSV / CPA 格式）
-    - 单个账号导出为独立 `.json` 文件
-    - 多个账号打包为 `.zip`，每个账号一个独立文件
-  - CPA 上传（Codex Protocol API，直连不走代理）
-  - 订阅状态管理（手动标记 / 自动检测 plus/team）
-  - Team Manager 上传（直连不走代理）
+- **Управление аккаунтами**
+  - Просмотр, удаление, массовые операции
+  - Обновление и валидация токенов
+  - Экспорт (JSON / CSV / CPA-формат)
+    - Одиночный аккаунт — отдельный `.json` файл
+    - Несколько аккаунтов — `.zip` архив с отдельным файлом на каждый аккаунт
+  - Загрузка в CPA (Codex Protocol API, прямое подключение без прокси)
+  - Управление подпиской (ручная отметка / автоопределение plus/team)
+  - Загрузка в Team Manager (прямое подключение без прокси)
 
-- **支付升级**
-  - 为账号生成 ChatGPT Plus 或 Team 订阅支付链接
-  - 后端命令行以无痕模式自动打开 Chrome/Edge
-  - Team 套餐支持自定义工作区名称、座位数、计费周期
+- **Оплата и апгрейд**
+  - Генерация ссылок на оплату ChatGPT Plus или Team
+  - Автоматическое открытие Chrome/Edge в режиме инкогнито на бэкенде
+  - Для Team: настраиваемое имя workspace, количество мест, период оплаты
 
-- **系统设置**
-  - 代理配置（静态 + 动态）
-  - Outlook OAuth 参数
-  - 注册参数（超时、重试、密码长度等）
-  - 验证码等待配置
-  - CPA 上传配置
-  - Team Manager 配置（API URL + API Key）
-  - 数据库管理（备份、清理）
+- **Системные настройки**
+  - Конфигурация прокси (статический + динамический)
+  - Параметры OAuth для Outlook
+  - Параметры регистрации (таймаут, повторы, длина пароля и т.д.)
+  - Настройка ожидания кода подтверждения
+  - Настройка загрузки CPA
+  - Настройка Team Manager (API URL + API Key)
+  - Управление базой данных (бэкап, очистка)
 
-## 快速开始
+## Быстрый старт
 
-### 环境要求
+### Требования
 
 - Python 3.10+
-- [uv](https://github.com/astral-sh/uv)（推荐）或 pip
+- [uv](https://github.com/astral-sh/uv) (рекомендуется) или pip
 
-### 安装依赖
+### Установка зависимостей
 
 ```bash
-# 使用 uv（推荐）
+# Используя uv (рекомендуется)
 uv sync
 
-# 或使用 pip
+# Или используя pip
 pip install -r requirements.txt
 ```
 
-### 启动 Web UI
+### Запуск Web UI
 
 ```bash
-# 默认启动（127.0.0.1:8000）
+# Запуск по умолчанию (127.0.0.1:8000)
 python webui.py
 
-# 指定地址和端口
+# Указать адрес и порт
 python webui.py --host 0.0.0.0 --port 8080
 
-# 调试模式（热重载）
+# Режим отладки (горячая перезагрузка)
 python webui.py --debug
 ```
 
-启动后访问 http://127.0.0.1:8000
+После запуска откройте http://127.0.0.1:8000
 
-## 打包为可执行文件
+## Сборка в исполняемый файл
 
 ```bash
 # Windows
@@ -99,189 +99,189 @@ build.bat
 bash build.sh
 ```
 
-打包后生成 `codex-register.exe`（Windows）或 `codex-register`（Unix），双击或直接运行即可，无需安装 Python 环境。
+После сборки будет создан `codex-register.exe` (Windows) или `codex-register` (Unix) — запускается без установки Python.
 
-## 项目结构
+## Структура проекта
 
 ```
-codex-register-v2/
-├── webui.py            # Web UI 入口
-├── build.bat           # Windows 打包脚本
-├── build.sh            # Linux/macOS 打包脚本
+auto-reg-codex/
+├── webui.py            # Точка входа Web UI
+├── build.bat           # Скрипт сборки для Windows
+├── build.sh            # Скрипт сборки для Linux/macOS
 ├── src/
-│   ├── config/         # 配置管理（Pydantic Settings）
-│   ├── core/           # 核心功能（注册引擎、HTTP 客户端、CPA 上传、支付、TM 上传）
-│   ├── database/       # 数据库（SQLAlchemy + SQLite）
-│   ├── services/       # 邮箱服务实现
-│   └── web/            # FastAPI Web 应用
-│       ├── app.py      # 应用入口、路由挂载
-│       ├── routes/     # API 路由
-│       ├── task_manager.py  # 任务/日志/WebSocket 管理
-│       └── routes/websocket.py  # WebSocket 处理
-├── templates/          # Jinja2 HTML 模板
-├── static/             # 静态资源（CSS / JS）
-└── data/               # 运行时数据目录（数据库、日志）
+│   ├── config/         # Управление конфигурацией (Pydantic Settings)
+│   ├── core/           # Ядро (движок регистрации, HTTP-клиент, CPA, оплата, TM)
+│   ├── database/       # База данных (SQLAlchemy + SQLite)
+│   ├── services/       # Реализации почтовых сервисов
+│   └── web/            # FastAPI веб-приложение
+│       ├── app.py      # Точка входа, монтирование маршрутов
+│       ├── routes/     # API-маршруты
+│       ├── task_manager.py  # Менеджер задач/логов/WebSocket
+│       └── routes/websocket.py  # Обработка WebSocket
+├── templates/          # HTML-шаблоны Jinja2
+├── static/             # Статические ресурсы (CSS / JS)
+└── data/               # Данные времени выполнения (БД, логи)
 ```
 
-## 技术栈
+## Стек технологий
 
-| 层级 | 技术 |
-|------|------|
-| Web 框架 | FastAPI + Uvicorn |
-| 数据库 | SQLAlchemy + SQLite |
-| 模板引擎 | Jinja2 |
-| HTTP 客户端 | curl_cffi（浏览器指纹模拟） |
-| 实时通信 | WebSocket |
-| 并发 | asyncio Semaphore + ThreadPoolExecutor |
-| 前端 | 原生 JavaScript（无框架） |
-| 打包 | PyInstaller |
+| Уровень | Технология |
+|---------|-----------|
+| Веб-фреймворк | FastAPI + Uvicorn |
+| База данных | SQLAlchemy + SQLite |
+| Шаблонизатор | Jinja2 |
+| HTTP-клиент | curl_cffi (эмуляция отпечатка браузера) |
+| Реальное время | WebSocket |
+| Параллелизм | asyncio Semaphore + ThreadPoolExecutor |
+| Фронтенд | Нативный JavaScript (без фреймворков) |
+| Сборка | PyInstaller |
 
-## API 端点
+## API-эндпоинты
 
-### 注册任务
+### Задачи регистрации
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/registration/start` | 启动单次注册 |
-| POST | `/api/registration/batch` | 启动批量注册（支持 `concurrency`、`mode` 参数） |
-| GET | `/api/registration/batch/{id}` | 批量任务状态 |
-| POST | `/api/registration/batch/{id}/cancel` | 取消批量任务 |
-| POST | `/api/registration/outlook-batch` | 启动 Outlook 批量注册 |
-| GET | `/api/registration/outlook-batch/{id}` | Outlook 批量状态 |
-| GET | `/api/registration/tasks` | 任务列表 |
-| GET | `/api/registration/tasks/{uuid}` | 任务详情 |
-| GET | `/api/registration/tasks/{uuid}/logs` | 任务日志 |
-| POST | `/api/registration/tasks/{uuid}/cancel` | 取消任务 |
-| DELETE | `/api/registration/tasks/{uuid}` | 删除任务 |
-| GET | `/api/registration/available-services` | 可用邮箱服务 |
-| GET | `/api/registration/outlook-accounts` | 可用 Outlook 账户 |
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/api/registration/start` | Запуск одиночной регистрации |
+| POST | `/api/registration/batch` | Запуск пакетной регистрации (`concurrency`, `mode`) |
+| GET | `/api/registration/batch/{id}` | Статус пакетной задачи |
+| POST | `/api/registration/batch/{id}/cancel` | Отмена пакетной задачи |
+| POST | `/api/registration/outlook-batch` | Запуск пакетной регистрации Outlook |
+| GET | `/api/registration/outlook-batch/{id}` | Статус пакетной задачи Outlook |
+| GET | `/api/registration/tasks` | Список задач |
+| GET | `/api/registration/tasks/{uuid}` | Детали задачи |
+| GET | `/api/registration/tasks/{uuid}/logs` | Логи задачи |
+| POST | `/api/registration/tasks/{uuid}/cancel` | Отмена задачи |
+| DELETE | `/api/registration/tasks/{uuid}` | Удаление задачи |
+| GET | `/api/registration/available-services` | Доступные почтовые сервисы |
+| GET | `/api/registration/outlook-accounts` | Доступные аккаунты Outlook |
 
-### 账号管理
+### Управление аккаунтами
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/accounts` | 账号列表 |
-| GET | `/api/accounts/{id}` | 账号详情 |
-| DELETE | `/api/accounts/{id}` | 删除账号 |
-| POST | `/api/accounts/batch-delete` | 批量删除 |
-| POST | `/api/accounts/export/json` | 导出 JSON |
-| POST | `/api/accounts/export/csv` | 导出 CSV |
-| POST | `/api/accounts/export/cpa` | 导出 CPA 格式（单文件或 ZIP） |
-| POST | `/api/accounts/{id}/refresh` | 刷新 Token |
-| POST | `/api/accounts/batch-refresh` | 批量刷新 Token |
-| POST | `/api/accounts/{id}/validate` | 验证 Token |
-| POST | `/api/accounts/batch-validate` | 批量验证 Token |
-| POST | `/api/accounts/{id}/upload-cpa` | 上传到 CPA |
-| POST | `/api/accounts/batch-upload-cpa` | 批量上传到 CPA |
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/api/accounts` | Список аккаунтов |
+| GET | `/api/accounts/{id}` | Детали аккаунта |
+| DELETE | `/api/accounts/{id}` | Удаление аккаунта |
+| POST | `/api/accounts/batch-delete` | Массовое удаление |
+| POST | `/api/accounts/export/json` | Экспорт в JSON |
+| POST | `/api/accounts/export/csv` | Экспорт в CSV |
+| POST | `/api/accounts/export/cpa` | Экспорт в CPA-формат (файл или ZIP) |
+| POST | `/api/accounts/{id}/refresh` | Обновить токен |
+| POST | `/api/accounts/batch-refresh` | Массовое обновление токенов |
+| POST | `/api/accounts/{id}/validate` | Проверить токен |
+| POST | `/api/accounts/batch-validate` | Массовая проверка токенов |
+| POST | `/api/accounts/{id}/upload-cpa` | Загрузить в CPA |
+| POST | `/api/accounts/batch-upload-cpa` | Массовая загрузка в CPA |
 
-### 支付升级
+### Оплата и апгрейд
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/payment/generate-link` | 生成 Plus/Team 支付链接 |
-| POST | `/api/payment/open-incognito` | 后端无痕模式打开浏览器 |
-| POST | `/api/payment/accounts/{id}/mark-subscription` | 手动标记订阅类型 |
-| POST | `/api/payment/accounts/batch-check-subscription` | 批量检测订阅状态 |
-| POST | `/api/payment/accounts/{id}/upload-tm` | 上传单账号到 Team Manager |
-| POST | `/api/payment/accounts/batch-upload-tm` | 批量上传到 Team Manager |
+| Метод | Путь | Описание |
+|-------|------|----------|
+| POST | `/api/payment/generate-link` | Генерация ссылки оплаты Plus/Team |
+| POST | `/api/payment/open-incognito` | Открыть браузер в режиме инкогнито |
+| POST | `/api/payment/accounts/{id}/mark-subscription` | Отметить тип подписки вручную |
+| POST | `/api/payment/accounts/batch-check-subscription` | Массовая проверка подписок |
+| POST | `/api/payment/accounts/{id}/upload-tm` | Загрузить аккаунт в Team Manager |
+| POST | `/api/payment/accounts/batch-upload-tm` | Массовая загрузка в Team Manager |
 
-### 邮箱服务
+### Почтовые сервисы
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/email-services` | 服务列表 |
-| POST | `/api/email-services` | 添加服务 |
-| GET | `/api/email-services/{id}` | 服务详情 |
-| PATCH | `/api/email-services/{id}` | 更新服务 |
-| DELETE | `/api/email-services/{id}` | 删除服务 |
-| POST | `/api/email-services/{id}/test` | 测试服务 |
-| POST | `/api/email-services/outlook/batch-import` | 批量导入 Outlook |
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/api/email-services` | Список сервисов |
+| POST | `/api/email-services` | Добавить сервис |
+| GET | `/api/email-services/{id}` | Детали сервиса |
+| PATCH | `/api/email-services/{id}` | Обновить сервис |
+| DELETE | `/api/email-services/{id}` | Удалить сервис |
+| POST | `/api/email-services/{id}/test` | Тестировать сервис |
+| POST | `/api/email-services/outlook/batch-import` | Массовый импорт Outlook |
 
-### 设置
+### Настройки
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/settings` | 获取所有设置 |
-| POST | `/api/settings/proxy` | 更新代理设置 |
-| POST | `/api/settings/dynamic-proxy` | 更新动态代理设置 |
-| POST | `/api/settings/cpa` | 更新 CPA 设置 |
-| POST | `/api/settings/cpa/test` | 测试 CPA 连接 |
-| GET/POST | `/api/settings/team-manager` | Team Manager 设置 |
-| POST | `/api/settings/team-manager/test` | 测试 Team Manager 连接 |
-| GET | `/api/settings/database` | 数据库信息 |
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/api/settings` | Получить все настройки |
+| POST | `/api/settings/proxy` | Обновить настройки прокси |
+| POST | `/api/settings/dynamic-proxy` | Обновить динамический прокси |
+| POST | `/api/settings/cpa` | Обновить настройки CPA |
+| POST | `/api/settings/cpa/test` | Тестировать подключение CPA |
+| GET/POST | `/api/settings/team-manager` | Настройки Team Manager |
+| POST | `/api/settings/team-manager/test` | Тестировать подключение TM |
+| GET | `/api/settings/database` | Информация о базе данных |
 
 ### WebSocket
 
-| 路径 | 说明 |
-|------|------|
-| `ws://host/api/ws/task/{uuid}` | 单任务实时日志 |
-| `ws://host/api/ws/batch/{id}` | 批量任务实时状态与日志 |
+| Путь | Описание |
+|------|----------|
+| `ws://host/api/ws/task/{uuid}` | Логи задачи в реальном времени |
+| `ws://host/api/ws/batch/{id}` | Статус и логи пакетной задачи |
 
-## Docker 部署
+## Развёртывание через Docker
 
-### 环境要求
+### Требования
 
 - Docker
 - Docker Compose
 
-### 快速部署
+### Быстрое развёртывание
 
 ```bash
-# 克隆项目
-git clone https://github.com/cnlimiter/codex-register.git
-cd codex-register
+# Клонировать проект
+git clone https://github.com/AlterEgo010101/auto-reg-codex.git
+cd auto-reg-codex
 
-# 启动服务
+# Запустить сервис
 docker-compose up -d
 ```
 
-服务启动后访问 http://localhost:8000
+После запуска откройте http://localhost:8000
 
-### 配置说明
+### Конфигурация
 
-**端口映射**：默认 `8000` 端口，可在 `docker-compose.yml` 中修改。
+**Проброс портов**: по умолчанию порт `8000`, можно изменить в `docker-compose.yml`.
 
-**数据持久化**：
+**Персистентность данных**:
 ```yaml
 volumes:
   - ./data:/app/data
   - ./logs:/app/logs
 ```
 
-**代理配置**：
+**Настройка прокси**:
 ```yaml
 environment:
   - HTTP_PROXY=http://your-proxy:port
   - HTTPS_PROXY=http://your-proxy:port
 ```
 
-### 常用命令
+### Основные команды
 
 ```bash
-# 查看日志
+# Просмотр логов
 docker-compose logs -f
 
-# 停止服务
+# Остановка сервиса
 docker-compose down
 
-# 重新构建
+# Пересборка
 docker-compose build --no-cache
 ```
 
-## 注意事项
+## Примечания
 
-- 首次运行会自动创建 `data/` 目录和 SQLite 数据库
-- 所有账号和设置数据存储在 `data/register.db`
-- 日志文件写入 `logs/` 目录
-- 代理设置优先级：动态代理 > 代理列表（随机） > 静态默认代理
-- 注册时自动随机生成用户名和生日（年龄范围 18-45 岁）
-- CPA 上传始终直连，不经过代理
-- Team Manager 上传始终直连，不经过代理
-- 支付链接生成使用账号 access_token 鉴权，走全局代理配置
-- 无痕浏览器依次尝试 Chrome、Edge，未找到时返回失败提示
-- 订阅状态自动检测调用 `chatgpt.com/backend-api/me`，走全局代理
-- 批量注册并发数上限为 50，线程池大小已相应调整
+- При первом запуске автоматически создаётся директория `data/` и база данных SQLite
+- Все данные аккаунтов и настройки хранятся в `data/database.db`
+- Логи записываются в директорию `logs/`
+- Приоритет прокси: динамический > список (случайный) > статический по умолчанию
+- При регистрации автоматически генерируются имя пользователя и дата рождения (возраст 18–45 лет)
+- Загрузка в CPA всегда идёт напрямую, без прокси
+- Загрузка в Team Manager всегда идёт напрямую, без прокси
+- Генерация ссылок оплаты использует access_token аккаунта, работает через глобальный прокси
+- Инкогнито-браузер пробует Chrome, затем Edge; если не найден — возвращает ошибку
+- Автоопределение подписки вызывает `chatgpt.com/backend-api/me` через глобальный прокси
+- Максимум параллельных регистраций — 50, размер пула потоков соответственно увеличен
 
-## License
+## Лицензия
 
 [MIT](LICENSE)
