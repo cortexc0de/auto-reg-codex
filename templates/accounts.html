@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление аккаунтами - Система регистрации OpenAI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+    <style>
+        .password-cell {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+        }
+        .password-hidden {
+            filter: blur(4px);
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+        .password-hidden:hover {
+            filter: blur(0);
+        }
+        .token-status {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .token-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .token-status .dot.healthy { background: var(--success-color); }
+        .token-status .dot.warning { background: var(--warning-color); }
+        .token-status .dot.expired { background: var(--danger-color); }
+        .cpa-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .cpa-status .badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+        .cpa-status .badge.uploaded { background: var(--success-color); color: white; }
+        .cpa-status .badge.pending { background: var(--border-color); color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Навигация -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>Система регистрации OpenAI</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Регистрация</a>
+                <a href="/accounts" class="nav-link active">Аккаунты</a>
+                <a href="/email-services" class="nav-link">Почтовые сервисы</a>
+                <a href="/payment" class="nav-link">Оплата</a>
+                <a href="/settings" class="nav-link">Настройки</a>
+            </div>
+            <button class="theme-toggle" onclick="theme.toggle()" title="Переключить тему">
+                🌙
+            </button>
+        </nav>
+
+        <!-- Основной контент -->
+        <main class="main-content">
+            <div class="page-header">
+                <h2>Управление аккаунтами</h2>
+                <p class="subtitle">Просмотр и управление зарегистрированными аккаунтами OpenAI</p>
+            </div>
+
+            <!-- Карточки статистики -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-accounts">0</div>
+                    <div class="stat-label">Всего аккаунтов</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-value" id="active-accounts">0</div>
+                    <div class="stat-label">Активные</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-value" id="expired-accounts">0</div>
+                    <div class="stat-label">Истёкшие</div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="stat-value" id="failed-accounts">0</div>
+                    <div class="stat-label">С ошибками</div>
+                </div>
+            </div>
+
+            <!-- Панель инструментов -->
+            <div class="card toolbar-card">
+                <div class="card-body toolbar">
+                    <div class="toolbar-left">
+                        <select id="filter-status" class="form-select">
+                            <option value="">Все статусы</option>
+                            <option value="active">Активные</option>
+                            <option value="expired">Истёкшие</option>
+                            <option value="banned">Заблокированные</option>
+                            <option value="failed">С ошибками</option>
+                        </select>
+
+                        <select id="filter-service" class="form-select">
+                            <option value="">Все почтовые сервисы</option>
+                            <option value="tempmail">Tempmail</option>
+                            <option value="outlook">Outlook</option>
+                            <option value="custom_domain">Свой домен</option>
+                        </select>
+
+                        <input type="text" id="search-input" class="form-input" placeholder="🔍 Поиск по email..." style="min-width: 200px;">
+                    </div>
+
+                    <div class="toolbar-right">
+                        <button class="btn btn-ghost" id="refresh-btn" title="Обновить">
+                            🔄 Обновить
+                        </button>
+                        <button class="btn btn-warning" id="batch-refresh-btn" disabled title="Обновить Token">
+                            🔄 Обновить Token
+                        </button>
+                        <button class="btn btn-info" id="batch-validate-btn" disabled title="Проверить Token">
+                            ✅ Проверить Token
+                        </button>
+                        <button class="btn btn-success" id="batch-upload-cpa-btn" disabled title="Загрузить в CPA">
+                            ☁️ Загрузить CPA
+                        </button>
+                        <button class="btn btn-info" id="batch-check-sub-btn" disabled title="Проверить подписку">
+                            🔍 Проверить подписку
+                        </button>
+                        <button class="btn btn-success" id="batch-upload-tm-btn" disabled title="Загрузить в Team Manager">
+                            🚀 Загрузить TM
+                        </button>
+                        <button class="btn btn-danger" id="batch-delete-btn" disabled>
+                            🗑️ Удалить выбранные
+                        </button>
+                        <div class="dropdown">
+                            <button class="btn btn-primary" id="export-btn">
+                                📥 Экспорт
+                            </button>
+                            <div class="dropdown-menu" id="export-menu">
+                                <a href="#" class="dropdown-item" data-format="json">Экспорт JSON</a>
+                                <a href="#" class="dropdown-item" data-format="csv">Экспорт CSV</a>
+                                <a href="#" class="dropdown-item" data-format="cpa">Экспорт CPA формат</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Список аккаунтов -->
+            <div class="card">
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="select-all"></th>
+                                    <th style="width: 60px;">ID</th>
+                                    <th>Email</th>
+                                    <th style="width: 100px;">Пароль</th>
+                                    <th style="width: 120px;">Почтовый сервис</th>
+                                    <th style="width: 80px;">Статус</th>
+                                    <th style="width: 80px;">CPA</th>
+                                    <th style="width: 80px;">Подписка</th>
+                                    <th style="width: 140px;">Посл. обновление</th>
+                                    <th style="width: 170px;">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accounts-table">
+                                <tr>
+                                    <td colspan="11">
+                                        <div class="empty-state">
+                                            <div class="skeleton skeleton-text" style="width: 60%;"></div>
+                                            <div class="skeleton skeleton-text" style="width: 80%;"></div>
+                                            <div class="skeleton skeleton-text" style="width: 40%;"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Пагинация -->
+                    <div class="pagination" id="pagination">
+                        <button class="btn btn-secondary btn-sm" id="prev-page" disabled>
+                            ← Назад
+                        </button>
+                        <span id="page-info">Стр. 1 / 1</span>
+                        <button class="btn btn-secondary btn-sm" id="next-page">
+                            Далее →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Модальное окно деталей -->
+    <div class="modal" id="detail-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📋 Детали аккаунта</h3>
+                <button class="modal-close" id="close-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Динамическая загрузка -->
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/accounts.js"></script>
+</body>
+</html>

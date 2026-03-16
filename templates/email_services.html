@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Почтовые сервисы - Система регистрации OpenAI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📧</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <!-- Навигация -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>Система регистрации OpenAI</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Регистрация</a>
+                <a href="/accounts" class="nav-link">Аккаунты</a>
+                <a href="/email-services" class="nav-link active">Почтовые сервисы</a>
+                <a href="/payment" class="nav-link">Оплата</a>
+                <a href="/settings" class="nav-link">Настройки</a>
+            </div>
+            <button class="theme-toggle" onclick="theme.toggle()" title="Переключить тему">
+                🌙
+            </button>
+        </nav>
+
+        <!-- Основной контент -->
+        <main class="main-content">
+            <div class="page-header">
+                <h2>Управление почтовыми сервисами</h2>
+                <p class="subtitle">Настройка и управление почтовыми сервисами для регистрации</p>
+            </div>
+
+            <!-- Карточки статистики -->
+            <div class="stats-grid">
+                <div class="stat-card info">
+                    <div class="stat-value" id="outlook-count">0</div>
+                    <div class="stat-label">Аккаунты Outlook</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-value" id="custom-count">0</div>
+                    <div class="stat-label">Свои домены</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-value" id="tempmail-status">Доступна</div>
+                    <div class="stat-label">Временная почта</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-enabled">0</div>
+                    <div class="stat-label">Активных сервисов</div>
+                </div>
+            </div>
+
+            <!-- Управление Outlook -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📥 Массовый импорт Outlook</h3>
+                    <button class="btn btn-ghost btn-sm" id="toggle-outlook-import">Развернуть</button>
+                </div>
+                <div class="card-body" id="outlook-import-body" style="display: none;">
+                    <div class="import-info">
+                        <p><strong>Поддерживаемые форматы:</strong></p>
+                        <ul>
+                            <li><code>email----пароль</code> (аутентификация по паролю)</li>
+                            <li><code>email----пароль----client_id----refresh_token</code> (аутентификация XOAUTH2, рекомендуется)</li>
+                        </ul>
+                        <p>Один аккаунт на строку, поля разделены четырьмя дефисами (----). Строки, начинающиеся с #, игнорируются.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="outlook-import-data">Данные для импорта</label>
+                        <textarea id="outlook-import-data" rows="8" placeholder="example@outlook.com----password123&#10;test@outlook.com----password456----client_id----refresh_token"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="outlook-import-enabled" checked>
+                                Включить после импорта
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="outlook-import-priority">Приоритет</label>
+                            <input type="number" id="outlook-import-priority" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-primary" id="outlook-import-btn">📥 Начать импорт</button>
+                        <button type="button" class="btn btn-secondary" id="clear-import-btn">Очистить</button>
+                    </div>
+                    <div id="import-result" style="display: none; margin-top: var(--spacing-md);"></div>
+                </div>
+            </div>
+
+            <!-- Управление своими доменами -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🔗 Сервисы своих доменов</h3>
+                    <button class="btn btn-primary btn-sm" id="add-custom-btn">➕ Добавить сервис</button>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="select-all-custom"></th>
+                                    <th>Название</th>
+                                    <th style="width: 200px;">Адрес API</th>
+                                    <th style="width: 100px;">Статус</th>
+                                    <th style="width: 80px;">Приоритет</th>
+                                    <th style="width: 160px;">Последнее исп.</th>
+                                    <th style="width: 180px;">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="custom-services-table">
+                                <tr>
+                                    <td colspan="7">
+                                        <div class="empty-state">
+                                            <div class="skeleton skeleton-text"></div>
+                                            <div class="skeleton skeleton-text" style="width: 80%;"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Список аккаунтов Outlook -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📧 Список аккаунтов Outlook</h3>
+                    <button class="btn btn-danger btn-sm" id="batch-delete-outlook-btn" disabled>🗑️ Удалить выбранные</button>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="select-all-outlook"></th>
+                                    <th>Email</th>
+                                    <th style="width: 100px;">Аутентификация</th>
+                                    <th style="width: 100px;">Статус</th>
+                                    <th style="width: 80px;">Приоритет</th>
+                                    <th style="width: 160px;">Последнее исп.</th>
+                                    <th style="width: 140px;">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="outlook-accounts-table">
+                                <tr>
+                                    <td colspan="7">
+                                        <div class="empty-state">
+                                            <div class="skeleton skeleton-text"></div>
+                                            <div class="skeleton skeleton-text" style="width: 80%;"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Настройка временной почты -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🌐 Настройка временной почты</h3>
+                </div>
+                <div class="card-body">
+                    <form id="tempmail-form">
+                        <div class="form-group">
+                            <label for="tempmail-api">Адрес API Tempmail.lol</label>
+                            <input type="text" id="tempmail-api" name="api_url" placeholder="https://tempmail.lol/api">
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="tempmail-enabled" checked>
+                                Включить временную почту
+                            </label>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">💾 Сохранить настройки</button>
+                            <button type="button" class="btn btn-secondary" id="test-tempmail-btn">🔌 Тест соединения</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Модальное окно добавления своего домена -->
+    <div class="modal" id="add-custom-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Добавить сервис своего домена</h3>
+                <button class="modal-close" id="close-custom-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-custom-form">
+                    <div class="form-group">
+                        <label for="custom-name">Название сервиса</label>
+                        <input type="text" id="custom-name" name="name" required placeholder="Например: Моя доменная почта">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-api-url">Адрес API</label>
+                        <input type="text" id="custom-api-url" name="api_url" required placeholder="https://api.example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-api-key">API ключ (необязательно)</label>
+                        <input type="text" id="custom-api-key" name="api_key" placeholder="API Key">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-domain">Домен email</label>
+                        <input type="text" id="custom-domain" name="domain" placeholder="example.com">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="custom-priority">Приоритет</label>
+                            <input type="number" id="custom-priority" name="priority" value="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="custom-enabled" name="enabled" checked>
+                                Включить сервис
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Добавить</button>
+                        <button type="button" class="btn btn-secondary" id="cancel-add-custom">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования своего домена -->
+    <div class="modal" id="edit-custom-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Редактировать сервис домена</h3>
+                <button class="modal-close" id="close-edit-custom-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-custom-form">
+                    <input type="hidden" id="edit-custom-id" name="id">
+                    <div class="form-group">
+                        <label for="edit-custom-name">Название сервиса</label>
+                        <input type="text" id="edit-custom-name" name="name" required placeholder="Например: Моя доменная почта">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-custom-api-url">Адрес API</label>
+                        <input type="text" id="edit-custom-api-url" name="api_url" required placeholder="https://api.example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-custom-api-key">API ключ</label>
+                        <input type="text" id="edit-custom-api-key" name="api_key" placeholder="API Key">
+                        <small style="color: var(--text-muted);">Оставьте пустым, чтобы сохранить текущее значение</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-custom-domain">Домен email</label>
+                        <input type="text" id="edit-custom-domain" name="domain" placeholder="example.com">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit-custom-priority">Приоритет</label>
+                            <input type="number" id="edit-custom-priority" name="priority" value="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="edit-custom-enabled" name="enabled">
+                                Включить сервис
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                        <button type="button" class="btn btn-secondary" id="cancel-edit-custom">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования Outlook -->
+    <div class="modal" id="edit-outlook-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Редактировать аккаунт Outlook</h3>
+                <button class="modal-close" id="close-edit-outlook-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-outlook-form">
+                    <input type="hidden" id="edit-outlook-id" name="id">
+                    <div class="form-group">
+                        <label for="edit-outlook-email">Адрес email</label>
+                        <input type="text" id="edit-outlook-email" name="email" required placeholder="example@outlook.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-outlook-password">Пароль</label>
+                        <input type="password" id="edit-outlook-password" name="password" placeholder="Оставьте пустым для сохранения">
+                        <small style="color: var(--text-muted);">Оставьте пустым, чтобы сохранить текущее значение</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-outlook-client-id">OAuth Client ID (необязательно)</label>
+                        <input type="text" id="edit-outlook-client-id" name="client_id" placeholder="Для аутентификации XOAUTH2">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-outlook-refresh-token">OAuth Refresh Token (необязательно)</label>
+                        <input type="text" id="edit-outlook-refresh-token" name="refresh_token" placeholder="Оставьте пустым для сохранения">
+                        <small style="color: var(--text-muted);">Оставьте пустым, чтобы сохранить текущее значение</small>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit-outlook-priority">Приоритет</label>
+                            <input type="number" id="edit-outlook-priority" name="priority" value="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="edit-outlook-enabled" name="enabled">
+                                Включить аккаунт
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                        <button type="button" class="btn btn-secondary" id="cancel-edit-outlook">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/email_services.js"></script>
+</body>
+</html>

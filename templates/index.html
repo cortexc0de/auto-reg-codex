@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Консоль регистрации - Система регистрации OpenAI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+    <style>
+        /* Двухколоночная раскладка */
+        .two-column-layout {
+            display: grid;
+            grid-template-columns: 30% 70%;
+            gap: var(--spacing-lg);
+            align-items: start;
+        }
+
+        .left-panel {
+            position: sticky;
+            top: calc(60px + var(--spacing-lg));
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        /* Строка статуса задачи */
+        .task-status-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background: var(--surface-hover);
+            border-radius: var(--radius);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .task-status-item {
+            text-align: center;
+        }
+
+        .task-status-item .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .task-status-item .value {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        /* Список зарегистрированных аккаунтов */
+        .recent-accounts-table {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .recent-accounts-table table {
+            width: 100%;
+        }
+
+        .recent-accounts-table th,
+        .recent-accounts-table td {
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 0.8125rem;
+        }
+
+        .password-cell {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+        }
+
+        .password-hidden {
+            filter: blur(4px);
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+
+        .password-hidden:hover {
+            filter: blur(0);
+        }
+
+        /* Адаптив */
+        @media (max-width: 1024px) {
+            .two-column-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .left-panel {
+                position: static;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Навигация -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>Система регистрации OpenAI</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link active">Регистрация</a>
+                <a href="/accounts" class="nav-link">Аккаунты</a>
+                <a href="/email-services" class="nav-link">Почтовые сервисы</a>
+                <a href="/payment" class="nav-link">Оплата</a>
+                <a href="/settings" class="nav-link">Настройки</a>
+            </div>
+            <button class="theme-toggle" onclick="theme.toggle()" title="Переключить тему">
+                🌙
+            </button>
+        </nav>
+
+        <!-- Основной контент - двухколоночная раскладка -->
+        <main class="main-content">
+            <div class="two-column-layout">
+                <!-- Левая панель - Настройки регистрации -->
+                <div class="left-panel">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>📝 Настройки регистрации</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="registration-form">
+                                <div class="form-group">
+                                    <label for="email-service">Почтовый сервис</label>
+                                    <select id="email-service" name="email_service" required>
+                                        <option value="tempmail">Tempmail.lol (временная почта)</option>
+                                        <option value="outlook">Outlook</option>
+                                        <option value="custom_domain">Свой домен</option>
+                                        <option value="outlook_batch">Пакетная регистрация Outlook</option>
+                                    </select>
+                                </div>
+
+                                <!-- Область пакетной регистрации Outlook -->
+                                <div id="outlook-batch-section" style="display: none;">
+                                    <div class="form-group">
+                                        <label>Выберите аккаунты</label>
+                                        <div id="outlook-accounts-container" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: var(--radius); padding: var(--spacing-sm);">
+                                            <div class="loading-placeholder" style="text-align: center; padding: var(--spacing-md); color: var(--text-muted);">
+                                                Загрузка...
+                                            </div>
+                                        </div>
+                                        <div style="margin-top: var(--spacing-sm); display: flex; gap: var(--spacing-xs); flex-wrap: wrap;">
+                                            <button type="button" class="btn btn-ghost btn-sm" onclick="selectAllOutlookAccounts()">Выбрать все</button>
+                                            <button type="button" class="btn btn-ghost btn-sm" onclick="selectUnregisteredOutlook()">Только незарег.</button>
+                                            <button type="button" class="btn btn-ghost btn-sm" onclick="deselectAllOutlookAccounts()">Снять выделение</button>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="outlook-concurrency-mode">Режим параллелизма</label>
+                                        <select id="outlook-concurrency-mode" name="outlook_concurrency_mode">
+                                            <option value="pipeline">Конвейер (Pipeline)</option>
+                                            <option value="parallel">Параллельный (Parallel)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="outlook-concurrency-count">Параллельность (1-50)</label>
+                                        <input type="number" id="outlook-concurrency-count" name="outlook_concurrency_count" min="1" max="50" value="3">
+                                        <small id="outlook-concurrency-hint" style="color: var(--text-muted); font-size: 0.75rem;">Макс. N задач одновременно, новая задача каждые interval сек.</small>
+                                    </div>
+                                    <div id="outlook-interval-group">
+                                        <div class="form-group">
+                                            <label for="outlook-interval-min">Мин. интервал (сек)</label>
+                                            <input type="number" id="outlook-interval-min" name="outlook_interval_min" min="0" max="300" value="5">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="outlook-interval-max">Макс. интервал (сек)</label>
+                                            <input type="number" id="outlook-interval-max" name="outlook_interval_max" min="1" max="600" value="30">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                                            <input type="checkbox" id="outlook-skip-registered" checked>
+                                            <span>Автопропуск зарегистрированных</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" id="reg-mode-group">
+                                    <label for="reg-mode">Режим регистрации</label>
+                                    <select id="reg-mode" name="reg_mode">
+                                        <option value="single">Одиночная</option>
+                                        <option value="batch">Пакетная</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group" id="batch-count-group" style="display: none;">
+                                    <label for="batch-count">Количество (1-100)</label>
+                                    <input type="number" id="batch-count" name="batch_count" min="1" max="100" value="5">
+                                </div>
+
+                                <div id="batch-options" style="display: none;">
+                                    <div class="form-group">
+                                        <label for="concurrency-mode">Режим параллелизма</label>
+                                        <select id="concurrency-mode" name="concurrency_mode">
+                                            <option value="pipeline">Конвейер (Pipeline)</option>
+                                            <option value="parallel">Параллельный (Parallel)</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="concurrency-count">Параллельность (1-50)</label>
+                                        <input type="number" id="concurrency-count" name="concurrency_count" min="1" max="50" value="3">
+                                        <small id="concurrency-hint" style="color: var(--text-muted); font-size: 0.75rem;">Макс. N задач одновременно, новая задача каждые interval сек.</small>
+                                    </div>
+
+                                    <div id="interval-group">
+                                        <div class="form-group">
+                                            <label for="interval-min">Мин. интервал (сек)</label>
+                                            <input type="number" id="interval-min" name="interval_min" min="0" max="300" value="5">
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="interval-max">Макс. интервал (сек)</label>
+                                            <input type="number" id="interval-max" name="interval_max" min="1" max="600" value="30">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-actions" style="flex-direction: column;">
+                                    <button type="submit" class="btn btn-primary btn-lg" id="start-btn" style="width: 100%;">
+                                        🚀 Начать регистрацию
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" id="cancel-btn" disabled style="width: 100%;">
+                                        Отменить задачу
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Правая панель -->
+                <div class="right-panel">
+                    <!-- Консоль -->
+                    <div class="card" id="console-card">
+                        <div class="card-header">
+                            <h3>💻 Консоль</h3>
+                            <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                                <span id="task-status-badge" class="status-badge pending" style="display: none;">Ожидание</span>
+                                <button class="btn btn-ghost btn-sm" id="clear-log-btn">Очистить</button>
+                            </div>
+                        </div>
+                        <div class="card-body" style="padding: 0;">
+                            <!-- Строка статуса задачи -->
+                            <div class="task-status-row" id="task-status-row" style="display: none;">
+                                <div class="task-status-item">
+                                    <div class="label">ID задачи</div>
+                                    <div class="value" id="task-id">-</div>
+                                </div>
+                                <div class="task-status-item">
+                                    <div class="label">Email</div>
+                                    <div class="value" id="task-email">-</div>
+                                </div>
+                                <div class="task-status-item">
+                                    <div class="label">Почтовый сервис</div>
+                                    <div class="value" id="task-service">-</div>
+                                </div>
+                                <div class="task-status-item">
+                                    <div class="label">Статус</div>
+                                    <div class="value" id="task-status">-</div>
+                                </div>
+                            </div>
+
+                            <!-- Прогресс пакетной задачи -->
+                            <div id="batch-progress-section" style="display: none; padding: var(--spacing-md); border-bottom: 1px solid var(--border-light);">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-sm);">
+                                    <span id="batch-progress-text">0/0</span>
+                                    <span id="batch-progress-percent">0%</span>
+                                </div>
+                                <div class="progress-bar-container">
+                                    <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+                                </div>
+                                <div class="batch-stats" style="margin-top: var(--spacing-sm);">
+                                    <span>✅ <strong id="batch-success">0</strong></span>
+                                    <span>❌ <strong id="batch-failed">0</strong></span>
+                                    <span>⏳ <strong id="batch-remaining">0</strong></span>
+                                </div>
+                            </div>
+
+                            <!-- Лог консоли -->
+                            <div id="console-log" class="console-log">
+                                <div class="log-line info">[Система] Готово, ожидание начала регистрации...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Список зарегистрированных аккаунтов -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>📋 Зарегистрированные аккаунты</h3>
+                            <div style="display: flex; gap: var(--spacing-sm);">
+                                <button class="btn btn-ghost btn-sm" id="refresh-accounts-btn">🔄 Обновить</button>
+                                <a href="/accounts" class="btn btn-secondary btn-sm">Показать все</a>
+                            </div>
+                        </div>
+                        <div class="card-body" style="padding: 0;">
+                            <div class="recent-accounts-table">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 50px;">ID</th>
+                                            <th>Email</th>
+                                            <th style="width: 120px;">Пароль</th>
+                                            <th style="width: 80px;">Статус</th>
+                                            <th style="width: 80px;">Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recent-accounts-table">
+                                        <tr>
+                                            <td colspan="5">
+                                                <div class="empty-state" style="padding: var(--spacing-md);">
+                                                    <div class="empty-state-icon">📭</div>
+                                                    <div class="empty-state-title">Нет зарегистрированных аккаунтов</div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

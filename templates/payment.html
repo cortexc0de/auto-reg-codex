@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оплата подписки - Система регистрации OpenAI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💳</text></svg>">
+    <style>
+        .plan-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .plan-card {
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            text-align: center;
+        }
+        .plan-card:hover {
+            border-color: var(--primary-color);
+        }
+        .plan-card.selected {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+        }
+        .plan-card h3 { margin: 0 0 8px; font-size: 1.2rem; }
+        .plan-card p  { margin: 0; color: var(--text-secondary); font-size: 0.9rem; }
+        .team-options { display: none; }
+        .team-options.show { display: block; }
+        .link-box {
+            display: none;
+            margin-top: 16px;
+        }
+        .link-box.show { display: block; }
+        .link-text {
+            width: 100%;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            resize: vertical;
+            min-height: 80px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Навигация -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>Система регистрации OpenAI</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Регистрация</a>
+                <a href="/accounts" class="nav-link">Аккаунты</a>
+                <a href="/email-services" class="nav-link">Почтовые сервисы</a>
+                <a href="/payment" class="nav-link active">Оплата</a>
+                <a href="/settings" class="nav-link">Настройки</a>
+            </div>
+            <button class="theme-toggle" onclick="theme.toggle()" title="Переключить тему">🌙</button>
+        </nav>
+
+        <!-- Основной контент -->
+        <main class="main-content">
+            <div class="page-header">
+                <h2>Оплата подписки</h2>
+                <p class="subtitle">Генерация ссылок для оплаты подписки Plus или Team</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>Выбор тарифа</h3>
+                </div>
+                <div class="card-body">
+                    <!-- Выбор тарифа -->
+                    <div class="plan-cards">
+                        <div class="plan-card selected" id="plan-plus" onclick="selectPlan('plus')">
+                            <h3>Plus</h3>
+                            <p>Персональная подписка, $20/мес.</p>
+                        </div>
+                        <div class="plan-card" id="plan-team" onclick="selectPlan('team')">
+                            <h3>Team</h3>
+                            <p>Командная подписка, оплата за места</p>
+                        </div>
+                    </div>
+
+                    <!-- Выбор аккаунта -->
+                    <div class="form-group">
+                        <label for="account-select">Выберите аккаунт</label>
+                        <select id="account-select" style="width:100%">
+                            <option value="">-- Загрузка... --</option>
+                        </select>
+                    </div>
+
+                    <!-- Доп. параметры Team -->
+                    <div class="team-options" id="team-options">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="workspace-name">Название рабочего пространства</label>
+                                <input type="text" id="workspace-name" value="MyTeam" placeholder="MyTeam">
+                            </div>
+                            <div class="form-group">
+                                <label for="seat-quantity">Количество мест</label>
+                                <input type="number" id="seat-quantity" value="5" min="1" max="100">
+                            </div>
+                            <div class="form-group">
+                                <label for="price-interval">Период оплаты</label>
+                                <select id="price-interval">
+                                    <option value="month">Ежемесячно</option>
+                                    <option value="year">Ежегодно</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Кнопки действий -->
+                    <div class="form-actions">
+                        <button class="btn btn-primary" onclick="generateLink()">Сгенерировать ссылку</button>
+                    </div>
+
+                    <!-- Результат -->
+                    <div class="link-box" id="link-box">
+                        <label>Ссылка на оплату</label>
+                        <textarea class="link-text" id="link-text" readonly></textarea>
+                        <div class="form-actions" style="margin-top:10px">
+                            <button class="btn btn-secondary" onclick="copyLink()">Копировать ссылку</button>
+                            <button class="btn btn-primary" onclick="openIncognito()">Открыть в инкогнито</button>
+                        </div>
+                        <p class="hint" id="open-status"></p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/payment.js"></script>
+</body>
+</html>
