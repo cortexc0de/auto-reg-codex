@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from ...database.session import get_db
 from ...database.models import Account
+from ...database import crud
 from ...config.settings import get_settings
 from .accounts import resolve_account_ids
 from ...core.payment import (
@@ -26,6 +27,27 @@ from ...core.team_manager import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _auto_create_workspace_for_team(db, account: Account) -> None:
+    """Auto-create a workspace record when a Team subscription is confirmed."""
+    if not account.account_id:
+        return
+    existing = crud.get_workspace_by_account_id(db, account.account_id)
+    if existing:
+        return
+    try:
+        crud.create_workspace(
+            db,
+            account_id=account.account_id,
+            owner_account_db_id=account.id,
+            owner_email=account.email,
+            plan_type="team",
+            name=f"Team — {account.email}",
+        )
+        logger.info("Auto-created workspace for account %s", account.email)
+    except Exception as e:
+        logger.warning("Failed to auto-create workspace for %s: %s", account.email, e)
 
 
 # ============== Pydantic Models ==============
@@ -141,6 +163,10 @@ def mark_subscription(account_id: int, request: MarkSubscriptionRequest):
         account.subscription_at = datetime.utcnow() if request.subscription_type != "free" else None
         db.commit()
 
+        # Auto-create workspace for Team subscriptions
+        if request.subscription_type == "team":
+            _auto_create_workspace_for_team(db, account)
+
     return {"success": True, "subscription_type": request.subscription_type}
 
 
@@ -170,6 +196,11 @@ def batch_check_subscription(request: BatchCheckSubscriptionRequest):
                 account.subscription_type = None if status == "free" else status
                 account.subscription_at = datetime.utcnow() if status != "free" else account.subscription_at
                 db.commit()
+
+                # Auto-create workspace for Team subscriptions
+                if status == "team":
+                    _auto_create_workspace_for_team(db, account)
+
                 results["success_count"] += 1
                 results["details"].append(
                     {"id": account_id, "email": account.email, "success": True, "subscription_type": status}

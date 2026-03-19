@@ -836,6 +836,13 @@ class RegistrationEngine:
             settings = get_settings()
 
             with get_db() as db:
+                # Merge Abuzovo mailbox_id into extra_data if applicable
+                extra = dict(result.metadata) if result.metadata else {}
+                if (self.email_service.service_type == EmailServiceType.ABUZOVO
+                        and self.email_info
+                        and self.email_info.get("mailbox_id")):
+                    extra["abuzovo_mailbox_id"] = self.email_info["mailbox_id"]
+
                 # Сохранение информации об аккаунте
                 account = crud.create_account(
                     db,
@@ -851,7 +858,7 @@ class RegistrationEngine:
                     refresh_token=result.refresh_token,
                     id_token=result.id_token,
                     proxy_used=self.proxy_url,
-                    extra_data=result.metadata,
+                    extra_data=extra or None,
                     source=result.source
                 )
 
