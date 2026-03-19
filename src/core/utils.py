@@ -564,3 +564,84 @@ class Timer:
         if self.start_time is not None:
             return time.time() - self.start_time
         return 0.0
+
+
+def parse_proxy_string(proxy_str: str) -> dict:
+    """
+    Parse proxy string in various formats:
+    - user:pass@host:port
+    - host:port:user:pass
+    - host:port
+    - socks5://user:pass@host:port
+    - http://user:pass@host:port
+    - socks5h://user:pass@host:port
+    Returns: {"type": "http"|"socks5", "host": str, "port": int, "username": str|None, "password": str|None}
+    """
+    proxy_str = proxy_str.strip()
+    if not proxy_str:
+        raise ValueError("Пустая строка прокси")
+
+    proxy_type = "http"
+    username = None
+    password = None
+
+    # Handle scheme prefix
+    scheme_match = re.match(r'^(https?|socks5h?|socks4)://', proxy_str, re.IGNORECASE)
+    if scheme_match:
+        scheme = scheme_match.group(1).lower()
+        proxy_str = proxy_str[scheme_match.end():]
+        if scheme.startswith("socks5"):
+            proxy_type = "socks5"
+        elif scheme == "socks4":
+            proxy_type = "socks5"
+        else:
+            proxy_type = "http"
+
+    # Format: user:pass@host:port
+    if "@" in proxy_str:
+        auth_part, host_part = proxy_str.rsplit("@", 1)
+        if ":" in auth_part:
+            username, password = auth_part.split(":", 1)
+        else:
+            username = auth_part
+        if ":" not in host_part:
+            raise ValueError(f"Нет порта в адресе: {host_part}")
+        host, port_str = host_part.rsplit(":", 1)
+        try:
+            port = int(port_str)
+        except ValueError:
+            raise ValueError(f"Некорректный порт: {port_str}")
+    else:
+        # No @ sign — could be host:port or host:port:user:pass
+        parts = proxy_str.split(":")
+        if len(parts) == 2:
+            # host:port
+            host, port_str = parts
+            try:
+                port = int(port_str)
+            except ValueError:
+                raise ValueError(f"Некорректный порт: {port_str}")
+        elif len(parts) == 4:
+            # host:port:user:pass
+            host = parts[0]
+            try:
+                port = int(parts[1])
+            except ValueError:
+                raise ValueError(f"Некорректный порт: {parts[1]}")
+            username = parts[2]
+            password = parts[3]
+        else:
+            raise ValueError(f"Неизвестный формат прокси: {proxy_str}")
+
+    if not host:
+        raise ValueError("Пустой хост")
+    if port < 1 or port > 65535:
+        raise ValueError(f"Порт вне диапазона: {port}")
+
+    return {
+        "type": proxy_type,
+        "host": host,
+        "port": port,
+        "username": username or None,
+        "password": password or None,
+    }

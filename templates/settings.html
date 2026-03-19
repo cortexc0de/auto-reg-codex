@@ -152,6 +152,7 @@
                         <h3>Список прокси</h3>
                         <div style="display: flex; gap: var(--spacing-sm);">
                             <button class="btn btn-secondary btn-sm" id="test-all-proxies-btn">🔌 Тестировать все</button>
+                            <button class="btn btn-secondary btn-sm" id="bulk-import-proxies-btn">📥 Импорт прокси</button>
                             <button class="btn btn-primary btn-sm" id="add-proxy-btn">➕ Добавить прокси</button>
                         </div>
                     </div>
@@ -197,6 +198,11 @@
                         <form id="proxy-item-form">
                             <input type="hidden" id="proxy-item-id">
                             <div class="form-group">
+                                <label>Быстрая вставка</label>
+                                <input type="text" id="proxy-quick-paste" placeholder="user:pass@host:port или socks5://host:port" autocomplete="off">
+                                <small style="color: var(--text-secondary);">Вставьте прокси в любом формате, поля заполнятся автоматически</small>
+                            </div>
+                            <div class="form-group">
                                 <label for="proxy-item-name">Название</label>
                                 <input type="text" id="proxy-item-name" name="name" required placeholder="Например: Прокси США 1">
                             </div>
@@ -232,6 +238,34 @@
                                 <button type="submit" class="btn btn-primary">💾 Сохранить</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Модальное окно массового импорта прокси -->
+            <div class="modal" id="bulk-import-proxy-modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>📥 Массовый импорт прокси</h3>
+                        <button class="modal-close" id="close-bulk-import-modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="bulk-proxy-text">Список прокси</label>
+                            <textarea id="bulk-proxy-text" rows="10" placeholder="Вставьте прокси, по одному на строку&#10;Форматы: user:pass@host:port, host:port:user:pass, socks5://user:pass@host:port&#10;Строки начинающиеся с # будут пропущены" style="width: 100%; font-family: monospace; font-size: 13px;"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="bulk-proxy-default-type">Тип по умолчанию (если не указан в строке)</label>
+                            <select id="bulk-proxy-default-type">
+                                <option value="http">HTTP</option>
+                                <option value="socks5">SOCKS5</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancel-bulk-import-btn">Отмена</button>
+                            <button type="button" class="btn btn-primary" id="do-bulk-import-btn">📥 Импортировать</button>
+                        </div>
+                        <div id="bulk-import-result" style="margin-top: var(--spacing-md); display: none;"></div>
                     </div>
                 </div>
             </div>

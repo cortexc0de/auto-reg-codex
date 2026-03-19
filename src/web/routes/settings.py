@@ -177,7 +177,7 @@ async def test_proxy_settings(request: ProxySettings):
         response = cffi_requests.get(
             test_url,
             proxies=proxies,
-            timeout=3,
+            timeout=10,
             impersonate="chrome110"
         )
 
@@ -572,6 +572,60 @@ async def create_proxy_item(request: ProxyCreateRequest):
         return {"success": True, "proxy": proxy.to_dict()}
 
 
+class ProxyBulkImportRequest(BaseModel):
+    """Запрос на массовый импорт прокси"""
+    proxies_text: str
+    default_type: str = "http"
+
+
+@router.post("/proxies/bulk-import")
+async def bulk_import_proxies(request: ProxyBulkImportRequest):
+    """Массовый импорт прокси из текста (по одному на строку)"""
+    from ...core.utils import parse_proxy_string
+
+    lines = request.proxies_text.strip().split("\n")
+    imported = 0
+    skipped = 0
+    errors = []
+
+    with get_db() as db:
+        for i, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                skipped += 1
+                continue
+
+            try:
+                parsed = parse_proxy_string(line)
+                # If no scheme was in the string and default_type is set, use it
+                if "://" not in line and request.default_type:
+                    parsed["type"] = request.default_type
+
+                name = f"{parsed['host']}:{parsed['port']}"
+                crud.create_proxy(
+                    db,
+                    name=name,
+                    type=parsed["type"],
+                    host=parsed["host"],
+                    port=parsed["port"],
+                    username=parsed["username"],
+                    password=parsed["password"],
+                    enabled=True,
+                    priority=0,
+                )
+                imported += 1
+            except Exception as e:
+                errors.append(f"Строка {i}: {str(e)}")
+                skipped += 1
+
+    return {
+        "success": True,
+        "imported": imported,
+        "skipped": skipped,
+        "errors": errors,
+    }
+
+
 @router.get("/proxies/{proxy_id}")
 async def get_proxy_item(proxy_id: int):
     """Получение отдельного прокси"""
@@ -644,7 +698,7 @@ async def test_proxy_item(proxy_id: int):
             response = cffi_requests.get(
                 test_url,
                 proxies=proxies,
-                timeout=3,
+                timeout=10,
                 impersonate="chrome110"
             )
 
@@ -695,7 +749,7 @@ async def test_all_proxies():
                 response = cffi_requests.get(
                     test_url,
                     proxies=proxies_dict,
-                    timeout=3,
+                    timeout=10,
                     impersonate="chrome110"
                 )
 

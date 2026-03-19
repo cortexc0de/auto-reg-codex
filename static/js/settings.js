@@ -33,6 +33,11 @@ const elements = {
     proxiesTable: document.getElementById('proxies-table'),
     addProxyBtn: document.getElementById('add-proxy-btn'),
     testAllProxiesBtn: document.getElementById('test-all-proxies-btn'),
+    bulkImportProxiesBtn: document.getElementById('bulk-import-proxies-btn'),
+    bulkImportProxyModal: document.getElementById('bulk-import-proxy-modal'),
+    closeBulkImportModal: document.getElementById('close-bulk-import-modal'),
+    cancelBulkImportBtn: document.getElementById('cancel-bulk-import-btn'),
+    doBulkImportBtn: document.getElementById('do-bulk-import-btn'),
     addProxyModal: document.getElementById('add-proxy-modal'),
     proxyItemForm: document.getElementById('proxy-item-form'),
     closeProxyModal: document.getElementById('close-proxy-modal'),
@@ -209,6 +214,33 @@ function initEventListeners() {
 
     if (elements.proxyItemForm) {
         elements.proxyItemForm.addEventListener('submit', handleSaveProxyItem);
+    }
+
+    // Быстрая вставка прокси
+    const quickPaste = document.getElementById('proxy-quick-paste');
+    if (quickPaste) {
+        quickPaste.addEventListener('input', handleProxyQuickPaste);
+    }
+
+    // Массовый импорт прокси
+    if (elements.bulkImportProxiesBtn) {
+        elements.bulkImportProxiesBtn.addEventListener('click', openBulkImportModal);
+    }
+    if (elements.closeBulkImportModal) {
+        elements.closeBulkImportModal.addEventListener('click', closeBulkImportModal);
+    }
+    if (elements.cancelBulkImportBtn) {
+        elements.cancelBulkImportBtn.addEventListener('click', closeBulkImportModal);
+    }
+    if (elements.doBulkImportBtn) {
+        elements.doBulkImportBtn.addEventListener('click', bulkImportProxies);
+    }
+    if (elements.bulkImportProxyModal) {
+        elements.bulkImportProxyModal.addEventListener('click', (e) => {
+            if (e.target === elements.bulkImportProxyModal) {
+                closeBulkImportModal();
+            }
+        });
     }
 
     // Настройки динамического прокси
@@ -929,6 +961,130 @@ async function handleTestAllProxies() {
     } finally {
         elements.testAllProxiesBtn.disabled = false;
         elements.testAllProxiesBtn.textContent = '🔌 Тестировать все';
+    }
+}
+
+// Парсинг строки прокси (клиентский)
+function parseProxyStringClient(str) {
+    str = str.trim();
+    if (!str) return null;
+
+    let proxyType = 'http';
+    let username = null;
+    let password = null;
+    let host, port;
+
+    const schemeMatch = str.match(/^(https?|socks5h?|socks4):\/\//i);
+    if (schemeMatch) {
+        const scheme = schemeMatch[1].toLowerCase();
+        str = str.slice(schemeMatch[0].length);
+        proxyType = scheme.startsWith('socks5') ? 'socks5' : 'http';
+    }
+
+    if (str.includes('@')) {
+        const atIdx = str.lastIndexOf('@');
+        const authPart = str.slice(0, atIdx);
+        const hostPart = str.slice(atIdx + 1);
+        const colonIdx = authPart.indexOf(':');
+        if (colonIdx !== -1) {
+            username = authPart.slice(0, colonIdx);
+            password = authPart.slice(colonIdx + 1);
+        } else {
+            username = authPart;
+        }
+        const lastColon = hostPart.lastIndexOf(':');
+        if (lastColon === -1) return null;
+        host = hostPart.slice(0, lastColon);
+        port = parseInt(hostPart.slice(lastColon + 1));
+    } else {
+        const parts = str.split(':');
+        if (parts.length === 2) {
+            host = parts[0];
+            port = parseInt(parts[1]);
+        } else if (parts.length === 4) {
+            host = parts[0];
+            port = parseInt(parts[1]);
+            username = parts[2];
+            password = parts[3];
+        } else {
+            return null;
+        }
+    }
+
+    if (!host || isNaN(port) || port < 1 || port > 65535) return null;
+    return { type: proxyType, host, port, username, password };
+}
+
+// Быстрая вставка прокси
+function handleProxyQuickPaste(e) {
+    const value = e.target.value;
+    if (!value || value.length < 5) return;
+
+    const parsed = parseProxyStringClient(value);
+    if (!parsed) return;
+
+    document.getElementById('proxy-item-type').value = parsed.type;
+    document.getElementById('proxy-item-host').value = parsed.host;
+    document.getElementById('proxy-item-port').value = parsed.port;
+    if (parsed.username) document.getElementById('proxy-item-username').value = parsed.username;
+    if (parsed.password) document.getElementById('proxy-item-password').value = parsed.password;
+    if (!document.getElementById('proxy-item-name').value) {
+        document.getElementById('proxy-item-name').value = `${parsed.host}:${parsed.port}`;
+    }
+}
+
+// Массовый импорт прокси — модальное окно
+function openBulkImportModal() {
+    document.getElementById('bulk-proxy-text').value = '';
+    document.getElementById('bulk-proxy-default-type').value = 'http';
+    const resultEl = document.getElementById('bulk-import-result');
+    if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+    elements.bulkImportProxyModal.classList.add('active');
+}
+
+function closeBulkImportModal() {
+    elements.bulkImportProxyModal.classList.remove('active');
+}
+
+async function bulkImportProxies() {
+    const text = document.getElementById('bulk-proxy-text').value.trim();
+    if (!text) {
+        toast.error('Введите список прокси');
+        return;
+    }
+
+    const defaultType = document.getElementById('bulk-proxy-default-type').value;
+    const btn = elements.doBulkImportBtn;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner"></span> Импорт...';
+
+    try {
+        const result = await api.post('/settings/proxies/bulk-import', {
+            proxies_text: text,
+            default_type: defaultType
+        });
+
+        const resultEl = document.getElementById('bulk-import-result');
+        let html = `<div style="padding: var(--spacing-sm); border-radius: var(--radius-sm); background: var(--bg-secondary);">`;
+        html += `<strong>Результат:</strong> импортировано ${result.imported}, пропущено ${result.skipped}`;
+        if (result.errors && result.errors.length > 0) {
+            html += `<br><strong>Ошибки:</strong><ul style="margin: 4px 0; padding-left: 20px;">`;
+            result.errors.forEach(e => { html += `<li style="color: var(--danger);">${escapeHtml(e)}</li>`; });
+            html += `</ul>`;
+        }
+        html += `</div>`;
+        resultEl.innerHTML = html;
+        resultEl.style.display = 'block';
+
+        if (result.imported > 0) {
+            toast.success(`Импортировано ${result.imported} прокси`);
+            loadProxies();
+        }
+    } catch (error) {
+        toast.error('Ошибка импорта: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '📥 Импортировать';
     }
 }
 
