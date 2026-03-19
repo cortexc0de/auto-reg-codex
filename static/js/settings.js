@@ -216,10 +216,29 @@ function initEventListeners() {
         elements.proxyItemForm.addEventListener('submit', handleSaveProxyItem);
     }
 
-    // Быстрая вставка прокси
+    // Быстрая вставка прокси (модал)
     const quickPaste = document.getElementById('proxy-quick-paste');
     if (quickPaste) {
         quickPaste.addEventListener('input', handleProxyQuickPaste);
+    }
+
+    // Быстрая вставка прокси (форма по умолчанию)
+    const quickInput = document.getElementById('proxy-quick-input');
+    if (quickInput) {
+        quickInput.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            if (!value) return;
+            const parsed = parseProxyStringClient(value);
+            if (parsed) {
+                document.getElementById('proxy-type').value = parsed.type;
+                document.getElementById('proxy-host').value = parsed.host;
+                document.getElementById('proxy-port').value = parsed.port;
+                document.getElementById('proxy-username').value = parsed.username || '';
+                document.getElementById('proxy-password').value = parsed.password || '';
+                document.getElementById('proxy-enabled').checked = true;
+                e.target.style.borderColor = 'var(--success)';
+            }
+        });
     }
 
     // Массовый импорт прокси

@@ -57,6 +57,12 @@
                     </div>
                     <div class="card-body">
                         <form id="proxy-form">
+                            <div class="form-group" style="margin-bottom: var(--spacing-md); padding-bottom: var(--spacing-md); border-bottom: 1px solid var(--border-light);">
+                                <label for="proxy-quick-input">📋 Быстрая вставка</label>
+                                <input type="text" id="proxy-quick-input" placeholder="user:pass@host:port или socks5://user:pass@host:port" autocomplete="off" style="font-family: monospace;">
+                                <small style="color: var(--text-muted);">Вставьте прокси строкой — поля заполнятся автоматически</small>
+                            </div>
+
                             <div class="form-group">
                                 <label>
                                     <input type="checkbox" id="proxy-enabled" name="enabled">
