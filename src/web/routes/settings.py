@@ -150,58 +150,57 @@ async def test_proxy_settings(request: ProxySettings):
     import time
     from curl_cffi import requests as cffi_requests
 
-    # Построение URL прокси
-    if request.type == "http":
-        scheme = "http"
-    elif request.type == "socks5":
-        scheme = "socks5"
-    else:
-        raise HTTPException(status_code=400, detail="Неподдерживаемый тип прокси")
-
     auth = ""
     if request.username and request.password:
         auth = f"{request.username}:{request.password}@"
 
-    proxy_url = f"{scheme}://{auth}{request.host}:{request.port}"
+    # Определяем порядок попыток: выбранный тип первым, потом альтернативный
+    schemes_to_try = []
+    if request.type == "socks5":
+        schemes_to_try = ["socks5", "socks5h"]
+    elif request.type == "http":
+        schemes_to_try = ["http", "socks5", "socks5h"]
+    else:
+        raise HTTPException(status_code=400, detail="Неподдерживаемый тип прокси")
 
-    # Тестирование подключения
     test_url = "https://api.ipify.org?format=json"
-    start_time = time.time()
+    last_error = ""
 
-    try:
-        proxies = {
-            "http": proxy_url,
-            "https": proxy_url
-        }
+    for scheme in schemes_to_try:
+        proxy_url = f"{scheme}://{auth}{request.host}:{request.port}"
+        start_time = time.time()
 
-        response = cffi_requests.get(
-            test_url,
-            proxies=proxies,
-            timeout=10,
-            impersonate="chrome110"
-        )
+        try:
+            response = cffi_requests.get(
+                test_url,
+                proxy=proxy_url,
+                timeout=10,
+                impersonate="chrome120"
+            )
 
-        elapsed_time = time.time() - start_time
+            elapsed_time = time.time() - start_time
 
-        if response.status_code == 200:
-            ip_info = response.json()
-            return {
-                "success": True,
-                "ip": ip_info.get("ip", ""),
-                "response_time": round(elapsed_time * 1000),  # миллисекунды
-                "message": f"Прокси подключен успешно, выходной IP: {ip_info.get('ip', 'unknown')}"
-            }
-        else:
-            return {
-                "success": False,
-                "message": f"Прокси вернул код ошибки: {response.status_code}"
-            }
+            if response.status_code == 200:
+                ip_info = response.json()
+                detected = scheme if scheme != request.type else request.type
+                msg = f"Прокси подключен ({detected}), IP: {ip_info.get('ip', '?')}"
+                if scheme != request.type:
+                    msg += f" ⚠️ Авто-определён как {scheme.upper()}, смените тип"
+                return {
+                    "success": True,
+                    "ip": ip_info.get("ip", ""),
+                    "response_time": round(elapsed_time * 1000),
+                    "detected_type": scheme,
+                    "message": msg
+                }
+        except Exception as e:
+            last_error = str(e)
+            continue
 
-    except Exception as e:
-        return {
-            "success": False,
-            "message": f"Ошибка подключения прокси: {str(e)}"
-        }
+    return {
+        "success": False,
+        "message": f"Прокси недоступен (пробовал {', '.join(schemes_to_try)}): {last_error}"
+    }
 
 
 @router.get("/proxy/dynamic")

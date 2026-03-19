@@ -73,12 +73,14 @@ class HTTPClient:
     def session(self) -> Session:
         """Получение объекта сессии (синглтон)"""
         if self._session is None:
-            self._session = Session(
-                proxies=self.proxies,
+            kwargs = dict(
                 impersonate=self.config.impersonate,
                 verify=self.config.verify_ssl,
                 timeout=self.config.timeout
             )
+            if self.proxy_url:
+                kwargs["proxy"] = self.proxy_url
+            self._session = Session(**kwargs)
         return self._session
 
     def request(
@@ -106,8 +108,8 @@ class HTTPClient:
         kwargs.setdefault("allow_redirects", self.config.follow_redirects)
 
         # Добавление настройки прокси
-        if self.proxies and "proxies" not in kwargs:
-            kwargs["proxies"] = self.proxies
+        if self.proxy_url and "proxy" not in kwargs and "proxies" not in kwargs:
+            kwargs["proxy"] = self.proxy_url
 
         last_exception = None
         for attempt in range(self.config.max_retries):
