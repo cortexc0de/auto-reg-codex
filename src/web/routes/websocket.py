@@ -7,10 +7,33 @@ import asyncio
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from ...core.scheduler import workspace_scheduler
 from ..task_manager import task_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.websocket("/ws/workspace-monitor")
+async def workspace_monitor_websocket(websocket: WebSocket):
+    """WebSocket for workspace monitoring logs"""
+    await websocket.accept()
+    workspace_scheduler.register_websocket(websocket)
+
+    try:
+        # Send buffered logs
+        for log in workspace_scheduler.get_logs():
+            await websocket.send_json(log)
+
+        # Keep alive until disconnect
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        pass
+    finally:
+        workspace_scheduler.unregister_websocket(websocket)
 
 
 @router.websocket("/ws/task/{task_uuid}")

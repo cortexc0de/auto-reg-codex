@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рабочие области - Система регистрации OpenAI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>">
+    <style>
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .workspace-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+        }
+
+        .workspace-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-color);
+        }
+
+        .workspace-card.selected {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+
+        .workspace-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .workspace-card-header h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .workspace-card-meta {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+        }
+
+        .workspace-card-meta .meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .workspace-card-actions {
+            margin-top: var(--spacing-md);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+
+        .slots-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--border-light);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            margin-top: var(--spacing-xs);
+        }
+
+        .slots-bar-fill {
+            height: 100%;
+            border-radius: var(--radius-full);
+            transition: width var(--transition-slow);
+        }
+
+        .detail-panel {
+            display: none;
+        }
+
+        .detail-panel.active {
+            display: block;
+        }
+
+        .members-table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .ban-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+        }
+
+        .ban-tag {
+            background: var(--danger-light);
+            color: var(--danger-color);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+        }
+
+        .monitoring-panel {
+            margin-top: var(--spacing-lg);
+        }
+
+        .monitoring-status {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .monitoring-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .monitoring-dot.running {
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        .monitoring-dot.stopped {
+            background: var(--danger-color);
+        }
+
+        .monitoring-log {
+            background: #0d1117;
+            color: #c9d1d9;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: var(--spacing-md);
+            border-radius: var(--radius);
+            height: 250px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .monitoring-log .log-line {
+            padding: 2px 0;
+        }
+
+        .monitoring-log .log-line.error {
+            color: #f87171;
+        }
+
+        .monitoring-log .log-line.success {
+            color: #4ade80;
+        }
+
+        .monitoring-log .log-line.warning {
+            color: #fbbf24;
+        }
+
+        .monitoring-stats {
+            display: flex;
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-md);
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+        }
+
+        .invite-row {
+            display: flex;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .invite-row input {
+            flex: 1;
+        }
+
+        .days-left-warn {
+            color: var(--warning-color);
+            font-weight: 600;
+        }
+
+        .days-left-ok {
+            color: var(--success-color);
+        }
+
+        .days-left-expired {
+            color: var(--danger-color);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Навигация -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>Система регистрации OpenAI</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">Регистрация</a>
+                <a href="/accounts" class="nav-link">Аккаунты</a>
+                <a href="/email-services" class="nav-link">Почтовые сервисы</a>
+                <a href="/payment" class="nav-link">Оплата</a>
+                <a href="/workspace" class="nav-link active">Рабочие области</a>
+                <a href="/settings" class="nav-link">Настройки</a>
+            </div>
+            <button class="theme-toggle" onclick="theme.toggle()" title="Переключить тему">
+                🌙
+            </button>
+        </nav>
+
+        <!-- Основной контент -->
+        <main class="main-content">
+            <div class="page-header">
+                <h2>Рабочие области</h2>
+                <p class="subtitle">Управление рабочими областями, участниками и мониторинг</p>
+            </div>
+
+            <!-- Карточки статистики -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-workspaces">0</div>
+                    <div class="stat-label">Всего областей</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-value" id="active-workspaces">0</div>
+                    <div class="stat-label">Активные</div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="stat-value" id="banned-workspaces">0</div>
+                    <div class="stat-label">Заблокированные</div>
+                </div>
+                <div class="stat-card info">
+                    <div class="stat-value" id="total-members">0</div>
+                    <div class="stat-label">Всего участников</div>
+                </div>
+            </div>
+
+            <!-- Панель инструментов -->
+            <div class="card toolbar-card">
+                <div class="card-body toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn btn-primary" id="add-workspace-btn">➕ Добавить область</button>
+                    </div>
+                    <div class="toolbar-right">
+                        <button class="btn btn-ghost" id="refresh-workspaces-btn">🔄 Обновить</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Сетка рабочих областей -->
+            <div class="workspace-grid" id="workspace-grid">
+                <div style="grid-column: 1 / -1;">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🏢</div>
+                        <div class="empty-state-title">Нет рабочих областей</div>
+                        <p style="color: var(--text-muted);">Добавьте первую рабочую область</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Панель деталей рабочей области -->
+            <div class="detail-panel" id="detail-panel">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📋 <span id="detail-ws-name">—</span></h3>
+                        <div style="display: flex; gap: var(--spacing-sm);">
+                            <button class="btn btn-primary btn-sm" id="detail-check-btn">🔍 Проверить</button>
+                            <button class="btn btn-warning btn-sm" id="detail-check-ban-btn">🚫 Проверить бан</button>
+                            <button class="btn btn-info btn-sm" id="detail-redistribute-btn">🔄 Перераспределить</button>
+                            <button class="btn btn-ghost btn-sm" id="detail-close-btn">✕ Закрыть</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Форма приглашения -->
+                        <div class="invite-row">
+                            <input type="email" id="invite-email" class="form-input" placeholder="Email для приглашения...">
+                            <button class="btn btn-primary" id="invite-btn">📨 Пригласить</button>
+                        </div>
+
+                        <!-- Таблица участников -->
+                        <div class="members-table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Email</th>
+                                        <th style="width: 90px;">Роль</th>
+                                        <th style="width: 90px;">Статус</th>
+                                        <th style="width: 130px;">Приглашён</th>
+                                        <th style="width: 130px;">Истекает</th>
+                                        <th style="width: 80px;">Дни</th>
+                                        <th style="width: 80px;">Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="members-table">
+                                    <tr>
+                                        <td colspan="7">
+                                            <div class="empty-state" style="padding: var(--spacing-md);">
+                                                <div class="empty-state-icon">👥</div>
+                                                <div class="empty-state-title">Нет участников</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Список забаненных email -->
+                        <div id="ban-section" style="display: none; margin-top: var(--spacing-lg);">
+                            <h4 style="margin-bottom: var(--spacing-sm); color: var(--danger-color);">🚫 Заблокированные email</h4>
+                            <div class="ban-list" id="ban-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Мониторинг -->
+            <div class="monitoring-panel">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📡 Мониторинг рабочих областей</h3>
+                        <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                            <div class="monitoring-status">
+                                <div class="monitoring-dot" id="monitoring-dot"></div>
+                                <span id="monitoring-status-text">Остановлен</span>
+                            </div>
+                            <button class="btn btn-primary btn-sm" id="monitoring-start-btn">▶ Запустить</button>
+                            <button class="btn btn-danger btn-sm" id="monitoring-stop-btn">⏹ Остановить</button>
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding: 0;">
+                        <div class="monitoring-log" id="monitoring-log">
+                            <div class="log-line">[Система] Ожидание запуска мониторинга...</div>
+                        </div>
+                        <div class="monitoring-stats" style="padding: var(--spacing-md);">
+                            <span>Циклов: <strong id="monitor-cycles">0</strong></span>
+                            <span>Последняя проверка: <strong id="monitor-last-check">—</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Модальное окно добавления рабочей области -->
+    <div class="modal" id="add-workspace-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Добавить рабочую область</h3>
+                <button class="modal-close" id="close-add-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-workspace-form">
+                    <div class="form-group">
+                        <label for="ws-name">Название</label>
+                        <input type="text" id="ws-name" name="name" required placeholder="Название рабочей области">
+                    </div>
+                    <div class="form-group">
+                        <label for="ws-account-id">ID аккаунта</label>
+                        <input type="text" id="ws-account-id" name="account_id" required placeholder="ID аккаунта-владельца">
+                    </div>
+                    <div class="form-group">
+                        <label for="ws-access-token">Access Token</label>
+                        <input type="text" id="ws-access-token" name="access_token" required placeholder="Токен доступа">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="ws-plan-type">Тип плана</label>
+                            <select id="ws-plan-type" name="plan_type">
+                                <option value="team">Team</option>
+                                <option value="enterprise">Enterprise</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="ws-max-seats">Макс. мест</label>
+                            <input type="number" id="ws-max-seats" name="max_seats" min="1" max="1000" value="5">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Добавить</button>
+                        <button type="button" class="btn btn-secondary" id="cancel-add-btn">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/workspace.js"></script>
+</body>
+</html>

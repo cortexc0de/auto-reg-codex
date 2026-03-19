@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from ..config.settings import get_settings
+from ..core.scheduler import workspace_scheduler
 from .routes import api_router
 from .routes.websocket import router as ws_router
 from .task_manager import task_manager
@@ -103,6 +104,11 @@ def create_app() -> FastAPI:
         """Страница оплаты"""
         return templates.TemplateResponse("payment.html", {"request": request})
 
+    @app.get("/workspace", response_class=HTMLResponse)
+    async def workspace_page(request: Request):
+        """Страница управления рабочими областями"""
+        return templates.TemplateResponse("workspace.html", {"request": request})
+
     @app.on_event("startup")
     async def startup_event():
         """Событие запуска приложения"""
@@ -118,9 +124,14 @@ def create_app() -> FastAPI:
         logger.info(f"База данных: {settings.database_url}")
         logger.info("=" * 50)
 
+        # Auto-start workspace monitoring if enabled
+        if settings.workspace_monitoring_enabled:
+            await workspace_scheduler.start()
+
     @app.on_event("shutdown")
     async def shutdown_event():
         """Событие завершения приложения"""
+        await workspace_scheduler.stop()
         logger.info("Приложение завершено")
 
     return app
