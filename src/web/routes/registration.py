@@ -308,6 +308,17 @@ def _run_sync_registration_task(task_uuid: str, email_service_type: str, proxy: 
                         logger.info(f"Используется аккаунт Outlook из БД: {selected_service.name}")
                     else:
                         raise ValueError("Все аккаунты Outlook уже зарегистрированы в OpenAI, добавьте новые аккаунты Outlook")
+                elif service_type == EmailServiceType.ABUZOVO:
+                    if not settings.abuzovo_enabled:
+                        raise ValueError("Abuzovo не включён. Включите в Настройки → Abuzovo")
+                    config = {
+                        "api_url": settings.abuzovo_api_url,
+                        "api_token": settings.abuzovo_api_token.get_secret_value() if settings.abuzovo_api_token else "",
+                        "domain_id": settings.abuzovo_default_domain_id or "",
+                        "email_type": settings.abuzovo_email_type or "random",
+                        "proxy_url": actual_proxy_url,
+                    }
+                    logger.info("Используется Abuzovo email сервис")
                 else:
                     config = email_service_config or {}
 
@@ -951,6 +962,25 @@ async def get_available_email_services():
                     "type": "custom_domain",
                     "from_settings": True
                 })
+
+    # Abuzovo
+    if settings.abuzovo_enabled:
+        result["abuzovo"] = {
+            "available": True,
+            "count": 1,
+            "services": [{
+                "id": None,
+                "name": "Abuzovo (abuz.store/online/site)",
+                "type": "abuzovo",
+                "description": "Почтовые ящики через Abuzovo API"
+            }]
+        }
+    else:
+        result["abuzovo"] = {
+            "available": False,
+            "count": 0,
+            "services": []
+        }
 
     return result
 

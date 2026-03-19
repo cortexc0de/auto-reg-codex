@@ -190,6 +190,16 @@ async def get_service_types():
                     {"name": "api_key", "label": "API Key", "required": True},
                     {"name": "default_domain", "label": "Домен по умолчанию", "required": False},
                 ]
+            },
+            {
+                "value": "abuzovo",
+                "label": "Abuzovo",
+                "description": "Abuzovo email API — почтовые ящики на доменах abuz.store/online/site",
+                "config_fields": [
+                    {"name": "api_url", "label": "URL API", "default": "https://abuzovo-bot.vercel.app", "required": False},
+                    {"name": "api_token", "label": "API токен", "required": False},
+                    {"name": "domain_id", "label": "ID домена", "required": False},
+                ]
             }
         ]
     }

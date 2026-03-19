@@ -21,7 +21,8 @@ let toastShown = false;  // toast уже показан
 let availableServices = {
     tempmail: { available: true, services: [] },
     outlook: { available: false, services: [] },
-    custom_domain: { available: false, services: [] }
+    custom_domain: { available: false, services: [] },
+    abuzovo: { available: false, services: [] }
 };
 
 // Переменные WebSocket
@@ -226,6 +227,22 @@ function updateEmailServiceOptions() {
         option.textContent = 'Сначала добавьте сервис на стр. Почтовых сервисов';
         option.disabled = true;
         optgroup.appendChild(option);
+
+        select.appendChild(optgroup);
+    }
+
+    // Abuzovo
+    if (availableServices.abuzovo && availableServices.abuzovo.available) {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = '📨 Abuzovo';
+
+        availableServices.abuzovo.services.forEach(service => {
+            const option = document.createElement('option');
+            option.value = `abuzovo:${service.id || 'default'}`;
+            option.textContent = service.name;
+            option.dataset.type = 'abuzovo';
+            optgroup.appendChild(option);
+        });
 
         select.appendChild(optgroup);
     }
