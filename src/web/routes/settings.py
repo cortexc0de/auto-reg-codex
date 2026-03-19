@@ -1011,8 +1011,12 @@ class WorkspaceSettingsRequest(BaseModel):
 @router.get("/workspace")
 def get_workspace_settings():
     """Получить настройки Workspace Manager"""
+    import json as _json
     from ...config.settings import get_settings
     settings = get_settings()
+    ban_kw = settings.workspace_ban_keywords
+    if isinstance(ban_kw, list):
+        ban_kw = _json.dumps(ban_kw, ensure_ascii=False)
     return {
         "monitoring_enabled": settings.workspace_monitoring_enabled,
         "monitoring_interval": settings.workspace_monitoring_interval,
@@ -1020,7 +1024,7 @@ def get_workspace_settings():
         "auto_kick_duration": settings.workspace_auto_kick_duration,
         "auto_redistribute_enabled": settings.workspace_auto_redistribute_enabled,
         "ban_detection_enabled": settings.workspace_ban_detection_enabled,
-        "ban_keywords": settings.workspace_ban_keywords,
+        "ban_keywords": ban_kw,
         "long_duration_days": settings.workspace_long_duration_days,
     }
 
@@ -1043,7 +1047,11 @@ def update_workspace_settings(request: WorkspaceSettingsRequest):
     if request.ban_detection_enabled is not None:
         updates["workspace_ban_detection_enabled"] = request.ban_detection_enabled
     if request.ban_keywords is not None:
-        updates["workspace_ban_keywords"] = request.ban_keywords
+        import json as _json
+        try:
+            updates["workspace_ban_keywords"] = _json.loads(request.ban_keywords)
+        except (ValueError, TypeError):
+            updates["workspace_ban_keywords"] = request.ban_keywords
     if request.long_duration_days is not None:
         updates["workspace_long_duration_days"] = request.long_duration_days
     if updates:
