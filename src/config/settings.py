@@ -440,7 +440,14 @@ def _convert_value(attr_name: str, value: str) -> Any:
     if attr_name in SECRET_FIELDS:
         return SecretStr(value) if value else SecretStr("")
 
-    target_type = SETTING_TYPES.get(attr_name, str)
+    target_type = SETTING_TYPES.get(attr_name)
+    if target_type is None:
+        # Try DB key format (e.g. "workspace.ban_keywords" for attr "workspace_ban_keywords")
+        defn = SETTING_DEFINITIONS.get(attr_name)
+        if defn:
+            target_type = SETTING_TYPES.get(defn.db_key, str)
+        else:
+            target_type = str
 
     if target_type == bool:
         if isinstance(value, bool):
