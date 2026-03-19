@@ -390,7 +390,7 @@ SETTING_DEFINITIONS: Dict[str, SettingDefinition] = {
     "workspace_auto_kick_duration": SettingDefinition("workspace.auto_kick_duration", 1, SettingCategory.WORKSPACE, "Кикать если приглашён на N дней и срок истёк"),
     "workspace_auto_redistribute_enabled": SettingDefinition("workspace.auto_redistribute_enabled", False, SettingCategory.WORKSPACE, "Автоперераспределение при бане"),
     "workspace_ban_detection_enabled": SettingDefinition("workspace.ban_detection_enabled", False, SettingCategory.WORKSPACE, "Детекция бана по письмам"),
-    "workspace_ban_keywords": SettingDefinition("workspace.ban_keywords", '["banned","suspended","violation","restricted","deactivated"]', SettingCategory.WORKSPACE, "Ключевые слова для детекта бана в письмах"),
+    "workspace_ban_keywords": SettingDefinition("workspace.ban_keywords", ["banned", "suspended", "violation", "restricted", "deactivated"], SettingCategory.WORKSPACE, "Ключевые слова для детекта бана в письмах"),
     "workspace_long_duration_days": SettingDefinition("workspace.long_duration_days", 30, SettingCategory.WORKSPACE, "Порог долгосрочного пользователя (дней)"),
 }
 
