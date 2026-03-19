@@ -13,11 +13,13 @@ from .base import (
 from .tempmail import TempmailService
 from .outlook import OutlookService
 from .custom_domain import CustomDomainEmailService
+from .abuzovo import AbuzovEmailService
 
 # Регистрация сервисов
 EmailServiceFactory.register(EmailServiceType.TEMPMAIL, TempmailService)
 EmailServiceFactory.register(EmailServiceType.OUTLOOK, OutlookService)
 EmailServiceFactory.register(EmailServiceType.CUSTOM_DOMAIN, CustomDomainEmailService)
+EmailServiceFactory.register(EmailServiceType.ABUZOVO, AbuzovEmailService)
 
 # Экспорт дополнительного содержимого модуля Outlook
 from .outlook.base import (
@@ -47,6 +49,7 @@ __all__ = [
     'TempmailService',
     'OutlookService',
     'CustomDomainEmailService',
+    'AbuzovEmailService',
     # Модуль Outlook
     'ProviderType',
     'EmailMessage',
