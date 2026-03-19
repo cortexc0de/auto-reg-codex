@@ -41,7 +41,9 @@
                 <button class="tab-btn" data-tab="outlook">📮 Outlook</button>
                 <button class="tab-btn" data-tab="registration">⚙️ Регистрация</button>
                 <button class="tab-btn" data-tab="email-code">📧 Код подтверждения</button>
+                <button class="tab-btn" data-tab="abuzovo">📨 Abuzovo</button>
                 <button class="tab-btn" data-tab="database">💾 База данных</button>
+                <button class="tab-btn" data-tab="workspace">🏢 Workspace</button>
             </div>
 
             <!-- Настройки прокси -->
@@ -424,6 +426,58 @@
                 </div>
             </div>
 
+            <!-- Настройки Abuzovo -->
+            <div class="tab-content" id="abuzovo-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Настройка Abuzovo</h3>
+                        <span class="hint">Настройка email-сервиса Abuzovo для создания почтовых ящиков</span>
+                    </div>
+                    <div class="card-body">
+                        <form id="abuzovo-form">
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="abuzovo-enabled" name="enabled">
+                                    Включить Abuzovo
+                                </label>
+                                <p class="hint">После включения можно использовать Abuzovo для создания email</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="abuzovo-api-url">URL API</label>
+                                <input type="text" id="abuzovo-api-url" name="api_url" placeholder="Например: https://abuzovo-bot.vercel.app">
+                                <p class="hint">Адрес API сервиса Abuzovo</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="abuzovo-api-token">API токен</label>
+                                <input type="password" id="abuzovo-api-token" name="api_token" placeholder="Оставьте пустым для сохранения" autocomplete="new-password">
+                                <p class="hint">Bearer-токен для аутентификации в Abuzovo API</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="abuzovo-default-domain-id">ID домена по умолчанию</label>
+                                <input type="text" id="abuzovo-default-domain-id" name="default_domain_id" placeholder="Оставьте пустым для автоопределения">
+                                <p class="hint">Идентификатор домена для создания почтовых ящиков</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="abuzovo-email-type">Тип создания ящика</label>
+                                <select id="abuzovo-email-type" name="email_type">
+                                    <option value="random">random — случайное имя</option>
+                                </select>
+                                <p class="hint">Способ генерации имени почтового ящика</p>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+                                <button type="button" class="btn btn-secondary" id="test-abuzovo-btn">🔌 Тест подключения</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <!-- База данных -->
             <div class="tab-content" id="database-tab">
                 <div class="card">
@@ -454,6 +508,78 @@
                             <button class="btn btn-secondary" id="backup-btn">💾 Резервная копия БД</button>
                             <button class="btn btn-warning" id="cleanup-btn">🧹 Очистить устаревшие данные</button>
                         </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Workspace Manager -->
+            <div class="tab-content" id="workspace-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Настройки Workspace Manager</h3>
+                        <span class="hint">Управление рабочими областями, мониторинг и автоматические действия</span>
+                    </div>
+                    <div class="card-body">
+                        <form id="workspace-form">
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="ws-monitoring-enabled" name="monitoring_enabled">
+                                    Включить мониторинг рабочих областей
+                                </label>
+                                <p class="hint">Периодическая проверка состояния рабочих областей</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="ws-monitoring-interval">Интервал проверки (секунд)</label>
+                                <input type="number" id="ws-monitoring-interval" name="monitoring_interval" value="300" min="30" max="3600">
+                                <span class="hint">Интервал мониторинга, рекомендуется 60-600 сек</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="ws-auto-kick-enabled" name="auto_kick_enabled">
+                                    Автоматический кик просроченных
+                                </label>
+                                <p class="hint">Автоматически удалять пользователей с истёкшим сроком</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="ws-auto-kick-duration">Кикать после N дней</label>
+                                <input type="number" id="ws-auto-kick-duration" name="auto_kick_duration" value="1" min="1" max="365">
+                                <span class="hint">Количество дней до автоматического кика</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="ws-auto-redistribute-enabled" name="auto_redistribute_enabled">
+                                    Автоперераспределение при бане
+                                </label>
+                                <p class="hint">Автоматически перераспределять пользователей при обнаружении бана</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="ws-ban-detection-enabled" name="ban_detection_enabled">
+                                    Детекция бана по письмам
+                                </label>
+                                <p class="hint">Обнаружение блокировки аккаунта по ключевым словам в почте</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="ws-ban-keywords">Ключевые слова бана (JSON array)</label>
+                                <textarea id="ws-ban-keywords" name="ban_keywords" rows="4" placeholder='["banned", "suspended", "violation"]'></textarea>
+                                <span class="hint">JSON-массив ключевых слов для детекции бана</span>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="ws-long-duration-days">Порог долгосрочного пользователя (дней)</label>
+                                <input type="number" id="ws-long-duration-days" name="long_duration_days" value="30" min="1" max="365">
+                                <span class="hint">Количество дней для определения долгосрочного пользователя</span>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>

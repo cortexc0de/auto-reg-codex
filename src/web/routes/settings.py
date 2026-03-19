@@ -914,3 +914,138 @@ async def test_team_manager_connection(request: TeamManagerTestRequest):
 
     success, message = do_test(request.api_url, api_key)
     return {"success": success, "message": message}
+
+
+# ============== Настройки Abuzovo ==============
+
+class AbuzovSettingsRequest(BaseModel):
+    enabled: Optional[bool] = None
+    api_url: Optional[str] = None
+    api_token: Optional[str] = None
+    default_domain_id: Optional[str] = None
+    email_type: Optional[str] = None
+
+
+@router.get("/abuzovo")
+def get_abuzovo_settings():
+    """Получение настроек Abuzovo"""
+    settings = get_settings()
+    return {
+        "enabled": settings.abuzovo_enabled,
+        "api_url": settings.abuzovo_api_url,
+        "has_token": bool(settings.abuzovo_api_token and settings.abuzovo_api_token.get_secret_value()),
+        "default_domain_id": settings.abuzovo_default_domain_id,
+        "email_type": settings.abuzovo_email_type,
+    }
+
+
+@router.post("/abuzovo")
+def update_abuzovo_settings(request: AbuzovSettingsRequest):
+    """Обновить настройки Abuzovo"""
+    updates = {}
+    if request.enabled is not None:
+        updates["abuzovo_enabled"] = request.enabled
+    if request.api_url is not None:
+        updates["abuzovo_api_url"] = request.api_url
+    if request.api_token is not None:
+        updates["abuzovo_api_token"] = request.api_token
+    if request.default_domain_id is not None:
+        updates["abuzovo_default_domain_id"] = request.default_domain_id
+    if request.email_type is not None:
+        updates["abuzovo_email_type"] = request.email_type
+    if updates:
+        update_settings(**updates)
+    return {"success": True, "message": "Настройки Abuzovo обновлены"}
+
+
+@router.post("/abuzovo/test")
+def test_abuzovo_connection():
+    """Тест подключения к Abuzovo API"""
+    from curl_cffi import requests as cffi_requests
+
+    settings = get_settings()
+    api_url = settings.abuzovo_api_url.rstrip("/")
+    api_token = settings.abuzovo_api_token.get_secret_value() if settings.abuzovo_api_token else ""
+
+    if not api_token:
+        raise HTTPException(status_code=400, detail="API токен не настроен")
+
+    try:
+        resp = cffi_requests.get(
+            f"{api_url}/api/v1/domains",
+            headers={"Authorization": f"Bearer {api_token}"},
+            timeout=15,
+            impersonate="chrome120",
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            domains = data.get("domains", [])
+            prices = data.get("prices", {})
+            return {
+                "success": True,
+                "message": f"Подключение успешно. Доменов: {len(domains)}",
+                "domains": domains,
+                "prices": prices,
+            }
+        elif resp.status_code == 401:
+            return {"success": False, "message": "Неверный API токен"}
+        else:
+            return {"success": False, "message": f"HTTP {resp.status_code}"}
+    except Exception as e:
+        return {"success": False, "message": f"Ошибка: {str(e)}"}
+
+
+# ============== Workspace Settings ==============
+
+class WorkspaceSettingsRequest(BaseModel):
+    monitoring_enabled: Optional[bool] = None
+    monitoring_interval: Optional[int] = None
+    auto_kick_enabled: Optional[bool] = None
+    auto_kick_duration: Optional[int] = None
+    auto_redistribute_enabled: Optional[bool] = None
+    ban_detection_enabled: Optional[bool] = None
+    ban_keywords: Optional[str] = None  # JSON string
+    long_duration_days: Optional[int] = None
+
+
+@router.get("/workspace")
+def get_workspace_settings():
+    """Получить настройки Workspace Manager"""
+    from ...config.settings import get_settings
+    settings = get_settings()
+    return {
+        "monitoring_enabled": settings.workspace_monitoring_enabled,
+        "monitoring_interval": settings.workspace_monitoring_interval,
+        "auto_kick_enabled": settings.workspace_auto_kick_enabled,
+        "auto_kick_duration": settings.workspace_auto_kick_duration,
+        "auto_redistribute_enabled": settings.workspace_auto_redistribute_enabled,
+        "ban_detection_enabled": settings.workspace_ban_detection_enabled,
+        "ban_keywords": settings.workspace_ban_keywords,
+        "long_duration_days": settings.workspace_long_duration_days,
+    }
+
+
+@router.post("/workspace")
+def update_workspace_settings(request: WorkspaceSettingsRequest):
+    """Обновить настройки Workspace Manager"""
+    from ...config.settings import update_settings
+    updates = {}
+    if request.monitoring_enabled is not None:
+        updates["workspace_monitoring_enabled"] = request.monitoring_enabled
+    if request.monitoring_interval is not None:
+        updates["workspace_monitoring_interval"] = request.monitoring_interval
+    if request.auto_kick_enabled is not None:
+        updates["workspace_auto_kick_enabled"] = request.auto_kick_enabled
+    if request.auto_kick_duration is not None:
+        updates["workspace_auto_kick_duration"] = request.auto_kick_duration
+    if request.auto_redistribute_enabled is not None:
+        updates["workspace_auto_redistribute_enabled"] = request.auto_redistribute_enabled
+    if request.ban_detection_enabled is not None:
+        updates["workspace_ban_detection_enabled"] = request.ban_detection_enabled
+    if request.ban_keywords is not None:
+        updates["workspace_ban_keywords"] = request.ban_keywords
+    if request.long_duration_days is not None:
+        updates["workspace_long_duration_days"] = request.long_duration_days
+    if updates:
+        update_settings(**updates)
+    return {"success": True, "message": "Настройки Workspace Manager обновлены"}

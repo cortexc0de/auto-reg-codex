@@ -47,6 +47,9 @@ const elements = {
     // Настройки Team Manager
     tmForm: document.getElementById('tm-form'),
     testTmBtn: document.getElementById('test-tm-btn'),
+    // Настройки Abuzovo
+    abuzovoForm: document.getElementById('abuzovo-form'),
+    testAbuzvoBtn: document.getElementById('test-abuzovo-btn'),
     // Настройки кода подтверждения
     emailCodeForm: document.getElementById('email-code-form'),
     // Настройки Outlook
@@ -242,6 +245,14 @@ function initEventListeners() {
     if (elements.testTmBtn) {
         elements.testTmBtn.addEventListener('click', handleTestTm);
     }
+
+    // Настройки Abuzovo
+    if (elements.abuzovoForm) {
+        elements.abuzovoForm.addEventListener('submit', handleSaveAbuzovo);
+    }
+    if (elements.testAbuzvoBtn) {
+        elements.testAbuzvoBtn.addEventListener('click', handleTestAbuzovo);
+    }
 }
 
 // Загрузка настроек
@@ -281,6 +292,8 @@ async function loadSettings() {
         loadOutlookSettings();
         // Загрузка настроек Team Manager
         loadTmSettings();
+        // Загрузка настроек Abuzovo
+        loadAbuzovoSettings();
 
     } catch (error) {
         console.error('Ошибка загрузки настроек:', error);
@@ -1108,6 +1121,65 @@ async function handleSaveTm(e) {
     }
 }
 
+// ============================================================================
+// Управление настройками Abuzovo
+// ============================================================================
+
+async function loadAbuzovoSettings() {
+    try {
+        const data = await api.get('/settings/abuzovo');
+
+        document.getElementById('abuzovo-enabled').checked = data.enabled || false;
+        document.getElementById('abuzovo-api-url').value = data.api_url || '';
+        document.getElementById('abuzovo-api-token').value = '';
+        document.getElementById('abuzovo-api-token').placeholder = data.has_token ? 'Настроено, оставьте пустым для сохранения' : 'Введите API токен';
+        document.getElementById('abuzovo-default-domain-id').value = data.default_domain_id || '';
+        document.getElementById('abuzovo-email-type').value = data.email_type || 'random';
+
+    } catch (error) {
+        console.error('Ошибка загрузки настроек Abuzovo:', error);
+    }
+}
+
+async function handleSaveAbuzovo(e) {
+    e.preventDefault();
+
+    const data = {
+        enabled: document.getElementById('abuzovo-enabled').checked,
+        api_url: document.getElementById('abuzovo-api-url').value,
+        api_token: document.getElementById('abuzovo-api-token').value || null,
+        default_domain_id: document.getElementById('abuzovo-default-domain-id').value,
+        email_type: document.getElementById('abuzovo-email-type').value,
+    };
+
+    try {
+        await api.post('/settings/abuzovo', data);
+        toast.success('Настройки Abuzovo сохранены');
+        loadAbuzovoSettings();
+    } catch (error) {
+        toast.error('Ошибка сохранения: ' + error.message);
+    }
+}
+
+async function handleTestAbuzovo() {
+    elements.testAbuzvoBtn.disabled = true;
+    elements.testAbuzvoBtn.innerHTML = '<span class="loading-spinner"></span> Тестирование...';
+
+    try {
+        const result = await api.post('/settings/abuzovo/test', {});
+        if (result.success) {
+            toast.success(result.message);
+        } else {
+            toast.error(result.message);
+        }
+    } catch (error) {
+        toast.error('Ошибка тестирования: ' + error.message);
+    } finally {
+        elements.testAbuzvoBtn.disabled = false;
+        elements.testAbuzvoBtn.textContent = '🔌 Тест подключения';
+    }
+}
+
 async function handleTestTm() {
     const apiUrl = document.getElementById('tm-api-url').value;
     const apiKey = document.getElementById('tm-api-key').value;
@@ -1147,3 +1219,51 @@ async function handleTestTm() {
         elements.testTmBtn.textContent = '🔌 Тест соединения';
     }
 }
+
+
+// ============== Настройки Workspace Manager ==============
+
+async function loadWorkspaceSettings() {
+    try {
+        const data = await api.get('/settings/workspace');
+        document.getElementById('ws-monitoring-enabled').checked = data.monitoring_enabled || false;
+        document.getElementById('ws-monitoring-interval').value = data.monitoring_interval || 300;
+        document.getElementById('ws-auto-kick-enabled').checked = data.auto_kick_enabled || false;
+        document.getElementById('ws-auto-kick-duration').value = data.auto_kick_duration || 1;
+        document.getElementById('ws-auto-redistribute-enabled').checked = data.auto_redistribute_enabled || false;
+        document.getElementById('ws-ban-detection-enabled').checked = data.ban_detection_enabled || false;
+        document.getElementById('ws-ban-keywords').value = data.ban_keywords || '[]';
+        document.getElementById('ws-long-duration-days').value = data.long_duration_days || 30;
+    } catch (error) {
+        console.error('Ошибка загрузки настроек Workspace:', error);
+    }
+}
+
+async function handleSaveWorkspace(e) {
+    e.preventDefault();
+    const data = {
+        monitoring_enabled: document.getElementById('ws-monitoring-enabled').checked,
+        monitoring_interval: parseInt(document.getElementById('ws-monitoring-interval').value) || 300,
+        auto_kick_enabled: document.getElementById('ws-auto-kick-enabled').checked,
+        auto_kick_duration: parseInt(document.getElementById('ws-auto-kick-duration').value) || 1,
+        auto_redistribute_enabled: document.getElementById('ws-auto-redistribute-enabled').checked,
+        ban_detection_enabled: document.getElementById('ws-ban-detection-enabled').checked,
+        ban_keywords: document.getElementById('ws-ban-keywords').value || '[]',
+        long_duration_days: parseInt(document.getElementById('ws-long-duration-days').value) || 30
+    };
+    try {
+        await api.post('/settings/workspace', data);
+        toast.success('Настройки Workspace Manager сохранены');
+    } catch (error) {
+        toast.error('Ошибка сохранения: ' + error.message);
+    }
+}
+
+// Инициализация формы Workspace
+(function initWorkspaceSettings() {
+    const wsForm = document.getElementById('workspace-form');
+    if (wsForm) {
+        wsForm.addEventListener('submit', handleSaveWorkspace);
+        loadWorkspaceSettings();
+    }
+})();
