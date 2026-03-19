@@ -25,6 +25,7 @@ class SettingCategory(str, Enum):
     CUSTOM_DOMAIN = "custom_domain"
     SECURITY = "security"
     CPA = "cpa"
+    ABUZOVO = "abuzovo"
 
 
 @dataclass
@@ -245,7 +246,7 @@ SETTING_DEFINITIONS: Dict[str, SettingDefinition] = {
     # Конфигурация почтовых сервисов
     "email_service_priority": SettingDefinition(
         db_key="email.service_priority",
-        default_value={"tempmail": 0, "outlook": 1, "custom_domain": 2},
+        default_value={"tempmail": 0, "outlook": 1, "custom_domain": 2, "abuzovo": 3},
         category=SettingCategory.EMAIL,
         description="Приоритет почтовых сервисов"
     ),
@@ -375,6 +376,13 @@ SETTING_DEFINITIONS: Dict[str, SettingDefinition] = {
         category=SettingCategory.EMAIL,
         description="OAuth Client ID Outlook по умолчанию"
     ),
+
+    # Конфигурация Abuzovo
+    "abuzovo_enabled": SettingDefinition("abuzovo.enabled", False, SettingCategory.ABUZOVO, "Включить Abuzovo email-сервис"),
+    "abuzovo_api_url": SettingDefinition("abuzovo.api_url", "https://abuzovo-bot.vercel.app", SettingCategory.ABUZOVO, "URL API Abuzovo"),
+    "abuzovo_api_token": SettingDefinition("abuzovo.api_token", "", SettingCategory.ABUZOVO, "API Bearer-токен Abuzovo", is_secret=True),
+    "abuzovo_default_domain_id": SettingDefinition("abuzovo.default_domain_id", "", SettingCategory.ABUZOVO, "ID домена по умолчанию для создания ящиков"),
+    "abuzovo_email_type": SettingDefinition("abuzovo.email_type", "random", SettingCategory.ABUZOVO, "Тип создания ящика (random)"),
 }
 
 # Маппинг имён атрибутов к ключам БД (для обратной совместимости)
@@ -403,6 +411,7 @@ SETTING_TYPES: Dict[str, Type] = {
     "outlook_provider_priority": list,
     "outlook_health_failure_threshold": int,
     "outlook_health_disable_duration": int,
+    "abuzovo.enabled": bool,
 }
 
 # Поля, которые нужно обрабатывать как SecretStr
@@ -621,7 +630,7 @@ class Settings(BaseModel):
     registration_sleep_max: int = 30
 
     # Конфигурация почтовых сервисов
-    email_service_priority: Dict[str, int] = {"tempmail": 0, "outlook": 1, "custom_domain": 2}
+    email_service_priority: Dict[str, int] = {"tempmail": 0, "outlook": 1, "custom_domain": 2, "abuzovo": 3}
 
     # Конфигурация Tempmail.lol
     tempmail_base_url: str = "https://api.tempmail.lol/v2"
@@ -654,6 +663,13 @@ class Settings(BaseModel):
     outlook_health_failure_threshold: int = 5
     outlook_health_disable_duration: int = 60
     outlook_default_client_id: str = "24d9a0ed-8787-4584-883c-2fd79308940a"
+
+    # Конфигурация Abuzovo
+    abuzovo_enabled: bool = False
+    abuzovo_api_url: str = "https://abuzovo-bot.vercel.app"
+    abuzovo_api_token: SecretStr = SecretStr("")
+    abuzovo_default_domain_id: str = ""
+    abuzovo_email_type: str = "random"
 
 
 # Глобальный экземпляр конфигурации

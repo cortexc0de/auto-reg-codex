@@ -182,3 +182,109 @@ class Proxy(Base):
             auth = f"{self.username}:{self.password}@"
 
         return f"{scheme}://{auth}{self.host}:{self.port}"
+
+
+class Workspace(Base):
+    """Рабочая область (Team workspace)"""
+    __tablename__ = "workspaces"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(200), nullable=True)
+    account_id = Column(String(100), unique=True, nullable=False, index=True)  # OpenAI account_id (NOT our DB id)
+    organization_id = Column(String(100), nullable=True)  # OpenAI org_id
+    owner_account_db_id = Column(Integer, nullable=True)  # FK to our accounts.id (nullable, owner may not be in our DB)
+    owner_email = Column(String(200), nullable=True)
+    plan_type = Column(String(20), default="team")
+    max_seats = Column(Integer, default=5)
+    used_seats = Column(Integer, default=0)
+    status = Column(String(20), default="active")  # active / banned / suspended / deactivated
+    banned_at = Column(DateTime, nullable=True)
+    subscription_plan = Column(String(50), nullable=True)
+    subscription_expires_at = Column(DateTime, nullable=True)
+    subscription_renews_at = Column(DateTime, nullable=True)
+    billing_period = Column(String(20), nullable=True)
+    last_checked_at = Column(DateTime, nullable=True)
+    access_token = Column(Text, nullable=True)  # Token for API calls
+    refresh_token = Column(Text, nullable=True)
+    extra_data = Column(JSONEncodedDict, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "account_id": self.account_id,
+            "organization_id": self.organization_id,
+            "owner_email": self.owner_email,
+            "plan_type": self.plan_type,
+            "max_seats": self.max_seats,
+            "used_seats": self.used_seats,
+            "status": self.status,
+            "banned_at": self.banned_at.isoformat() if self.banned_at else None,
+            "subscription_plan": self.subscription_plan,
+            "subscription_expires_at": self.subscription_expires_at.isoformat() if self.subscription_expires_at else None,
+            "subscription_renews_at": self.subscription_renews_at.isoformat() if self.subscription_renews_at else None,
+            "billing_period": self.billing_period,
+            "last_checked_at": self.last_checked_at.isoformat() if self.last_checked_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class WorkspaceMember(Base):
+    """Участник рабочей области"""
+    __tablename__ = "workspace_members"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=False, index=True)
+    openai_user_id = Column(String(100), nullable=True)  # user-XXXX from OpenAI
+    email = Column(String(200), nullable=False)
+    name = Column(String(200), nullable=True)
+    role = Column(String(30), default="standard-user")  # standard-user / account-owner
+    seat_type = Column(String(30), nullable=True)
+    status = Column(String(20), default="active")  # active / invited / kicked / left
+    duration_days = Column(Integer, nullable=True)  # How many days the invite is for (1, 30, etc.)
+    invited_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=True)  # When the invite/access expires
+    kicked_at = Column(DateTime, nullable=True)
+    kick_reason = Column(String(200), nullable=True)
+    moved_to_workspace_id = Column(Integer, nullable=True)  # Where member was redistributed to
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "workspace_id": self.workspace_id,
+            "openai_user_id": self.openai_user_id,
+            "email": self.email,
+            "name": self.name,
+            "role": self.role,
+            "seat_type": self.seat_type,
+            "status": self.status,
+            "duration_days": self.duration_days,
+            "invited_at": self.invited_at.isoformat() if self.invited_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "kicked_at": self.kicked_at.isoformat() if self.kicked_at else None,
+            "kick_reason": self.kick_reason,
+            "moved_to_workspace_id": self.moved_to_workspace_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class WorkspaceBanEmail(Base):
+    """Письма о бане рабочей области (обнаруженные через email API)"""
+    __tablename__ = "workspace_ban_emails"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id"), nullable=False, index=True)
+    mailbox_id = Column(String(100), nullable=True)  # Abuzovo mailbox ID
+    message_id = Column(String(100), nullable=True)  # Abuzovo message ID
+    subject = Column(Text, nullable=True)
+    sender = Column(String(200), nullable=True)
+    body_snippet = Column(Text, nullable=True)
+    ban_type = Column(String(50), nullable=True)  # workspace_ban / account_ban / warning
+    detected_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)

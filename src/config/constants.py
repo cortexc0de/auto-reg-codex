@@ -34,6 +34,7 @@ class EmailServiceType(str, Enum):
     TEMPMAIL = "tempmail"
     OUTLOOK = "outlook"
     CUSTOM_DOMAIN = "custom_domain"
+    ABUZOVO = "abuzovo"
 
 
 # ============================================================================
@@ -90,6 +91,13 @@ CUSTOM_DOMAIN_API_ENDPOINTS = {
     "get_email_messages": "/api/emails/{emailId}",
     "delete_email": "/api/emails/{emailId}",
     "get_message": "/api/emails/{emailId}/{messageId}",
+}
+
+# Конечные точки API Abuzovo
+ABUZOVO_API_ENDPOINTS = {
+    "domains": "/api/v1/domains",
+    "mailboxes": "/api/v1/mailboxes",
+    "messages": "/api/v1/messages",
 }
 
 # Конфигурация почтовых сервисов по умолчанию
