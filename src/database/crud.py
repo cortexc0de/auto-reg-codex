@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, asc, func
 
-from .models import Account, EmailService, RegistrationTask, Setting, Proxy
+from .models import Account, EmailService, RegistrationTask, Setting, Proxy, Workspace, WorkspaceMember, WorkspaceBanEmail
 
 
 # ============================================================================
@@ -498,3 +498,136 @@ def get_proxies_count(db: Session, enabled: Optional[bool] = None) -> int:
     if enabled is not None:
         query = query.filter(Proxy.enabled == enabled)
     return query.scalar()
+
+
+# ==================== Workspaces ====================
+
+def create_workspace(db, account_id, **kwargs):
+    """Создать запись рабочей области"""
+    workspace = Workspace(account_id=account_id, **kwargs)
+    db.add(workspace)
+    db.commit()
+    db.refresh(workspace)
+    return workspace
+
+def get_workspace_by_id(db, workspace_id):
+    """Получить workspace по ID"""
+    return db.query(Workspace).filter(Workspace.id == workspace_id).first()
+
+def get_workspace_by_account_id(db, account_id):
+    """Получить workspace по OpenAI account_id"""
+    return db.query(Workspace).filter(Workspace.account_id == account_id).first()
+
+def get_workspaces(db, status=None, skip=0, limit=50):
+    """Получить список workspaces с фильтрацией"""
+    query = db.query(Workspace)
+    if status:
+        query = query.filter(Workspace.status == status)
+    return query.order_by(Workspace.created_at.desc()).offset(skip).limit(limit).all()
+
+def get_active_workspaces(db):
+    """Получить все активные workspaces"""
+    return db.query(Workspace).filter(Workspace.status == "active").all()
+
+def update_workspace(db, workspace_id, **kwargs):
+    """Обновить workspace"""
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if workspace:
+        for key, value in kwargs.items():
+            if hasattr(workspace, key):
+                setattr(workspace, key, value)
+        db.commit()
+        db.refresh(workspace)
+    return workspace
+
+def delete_workspace(db, workspace_id):
+    """Удалить workspace"""
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if workspace:
+        db.delete(workspace)
+        db.commit()
+        return True
+    return False
+
+def get_workspaces_count(db, status=None):
+    """Количество workspaces"""
+    query = db.query(Workspace)
+    if status:
+        query = query.filter(Workspace.status == status)
+    return query.count()
+
+
+# ==================== Workspace Members ====================
+
+def create_workspace_member(db, workspace_id, email, **kwargs):
+    """Создать запись участника"""
+    member = WorkspaceMember(workspace_id=workspace_id, email=email, **kwargs)
+    db.add(member)
+    db.commit()
+    db.refresh(member)
+    return member
+
+def get_workspace_member_by_id(db, member_id):
+    """Получить участника по ID"""
+    return db.query(WorkspaceMember).filter(WorkspaceMember.id == member_id).first()
+
+def get_workspace_members(db, workspace_id, status=None, skip=0, limit=100):
+    """Получить участников workspace"""
+    query = db.query(WorkspaceMember).filter(WorkspaceMember.workspace_id == workspace_id)
+    if status:
+        query = query.filter(WorkspaceMember.status == status)
+    return query.order_by(WorkspaceMember.created_at.desc()).offset(skip).limit(limit).all()
+
+def get_expired_members(db, workspace_id):
+    """Получить участников с истёкшим сроком"""
+    from datetime import datetime
+    return db.query(WorkspaceMember).filter(
+        WorkspaceMember.workspace_id == workspace_id,
+        WorkspaceMember.status == "active",
+        WorkspaceMember.expires_at != None,
+        WorkspaceMember.expires_at < datetime.utcnow()
+    ).all()
+
+def update_workspace_member(db, member_id, **kwargs):
+    """Обновить участника"""
+    member = db.query(WorkspaceMember).filter(WorkspaceMember.id == member_id).first()
+    if member:
+        for key, value in kwargs.items():
+            if hasattr(member, key):
+                setattr(member, key, value)
+        db.commit()
+        db.refresh(member)
+    return member
+
+def delete_workspace_member(db, member_id):
+    """Удалить запись участника"""
+    member = db.query(WorkspaceMember).filter(WorkspaceMember.id == member_id).first()
+    if member:
+        db.delete(member)
+        db.commit()
+        return True
+    return False
+
+def get_workspace_member_by_email(db, workspace_id, email):
+    """Найти участника по email в конкретном workspace"""
+    return db.query(WorkspaceMember).filter(
+        WorkspaceMember.workspace_id == workspace_id,
+        WorkspaceMember.email == email
+    ).first()
+
+
+# ==================== Workspace Ban Emails ====================
+
+def create_workspace_ban_email(db, workspace_id, **kwargs):
+    """Создать запись об обнаруженном бан-письме"""
+    ban_email = WorkspaceBanEmail(workspace_id=workspace_id, **kwargs)
+    db.add(ban_email)
+    db.commit()
+    db.refresh(ban_email)
+    return ban_email
+
+def get_workspace_ban_emails(db, workspace_id, skip=0, limit=50):
+    """Получить бан-письма workspace"""
+    return db.query(WorkspaceBanEmail).filter(
+        WorkspaceBanEmail.workspace_id == workspace_id
+    ).order_by(WorkspaceBanEmail.detected_at.desc()).offset(skip).limit(limit).all()

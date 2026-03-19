@@ -26,6 +26,7 @@ class SettingCategory(str, Enum):
     SECURITY = "security"
     CPA = "cpa"
     ABUZOVO = "abuzovo"
+    WORKSPACE = "workspace"
 
 
 @dataclass
@@ -383,6 +384,14 @@ SETTING_DEFINITIONS: Dict[str, SettingDefinition] = {
     "abuzovo_api_token": SettingDefinition("abuzovo.api_token", "", SettingCategory.ABUZOVO, "API Bearer-токен Abuzovo", is_secret=True),
     "abuzovo_default_domain_id": SettingDefinition("abuzovo.default_domain_id", "", SettingCategory.ABUZOVO, "ID домена по умолчанию для создания ящиков"),
     "abuzovo_email_type": SettingDefinition("abuzovo.email_type", "random", SettingCategory.ABUZOVO, "Тип создания ящика (random)"),
+    "workspace_monitoring_enabled": SettingDefinition("workspace.monitoring_enabled", False, SettingCategory.WORKSPACE, "Включить мониторинг рабочих областей"),
+    "workspace_monitoring_interval": SettingDefinition("workspace.monitoring_interval", 300, SettingCategory.WORKSPACE, "Интервал проверки в секундах"),
+    "workspace_auto_kick_enabled": SettingDefinition("workspace.auto_kick_enabled", False, SettingCategory.WORKSPACE, "Автоматический кик просроченных"),
+    "workspace_auto_kick_duration": SettingDefinition("workspace.auto_kick_duration", 1, SettingCategory.WORKSPACE, "Кикать если приглашён на N дней и срок истёк"),
+    "workspace_auto_redistribute_enabled": SettingDefinition("workspace.auto_redistribute_enabled", False, SettingCategory.WORKSPACE, "Автоперераспределение при бане"),
+    "workspace_ban_detection_enabled": SettingDefinition("workspace.ban_detection_enabled", False, SettingCategory.WORKSPACE, "Детекция бана по письмам"),
+    "workspace_ban_keywords": SettingDefinition("workspace.ban_keywords", '["banned","suspended","violation","restricted","deactivated"]', SettingCategory.WORKSPACE, "Ключевые слова для детекта бана в письмах"),
+    "workspace_long_duration_days": SettingDefinition("workspace.long_duration_days", 30, SettingCategory.WORKSPACE, "Порог долгосрочного пользователя (дней)"),
 }
 
 # Маппинг имён атрибутов к ключам БД (для обратной совместимости)
@@ -412,6 +421,14 @@ SETTING_TYPES: Dict[str, Type] = {
     "outlook_health_failure_threshold": int,
     "outlook_health_disable_duration": int,
     "abuzovo.enabled": bool,
+    "workspace.monitoring_enabled": bool,
+    "workspace.monitoring_interval": int,
+    "workspace.auto_kick_enabled": bool,
+    "workspace.auto_kick_duration": int,
+    "workspace.auto_redistribute_enabled": bool,
+    "workspace.ban_detection_enabled": bool,
+    "workspace.ban_keywords": list,
+    "workspace.long_duration_days": int,
 }
 
 # Поля, которые нужно обрабатывать как SecretStr
@@ -670,6 +687,16 @@ class Settings(BaseModel):
     abuzovo_api_token: SecretStr = SecretStr("")
     abuzovo_default_domain_id: str = ""
     abuzovo_email_type: str = "random"
+
+    # Конфигурация Workspace Manager
+    workspace_monitoring_enabled: bool = False
+    workspace_monitoring_interval: int = 300
+    workspace_auto_kick_enabled: bool = False
+    workspace_auto_kick_duration: int = 1
+    workspace_auto_redistribute_enabled: bool = False
+    workspace_ban_detection_enabled: bool = False
+    workspace_ban_keywords: list = ["banned", "suspended", "violation", "restricted", "deactivated"]
+    workspace_long_duration_days: int = 30
 
 
 # Глобальный экземпляр конфигурации
