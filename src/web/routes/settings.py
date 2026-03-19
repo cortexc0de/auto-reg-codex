@@ -150,9 +150,18 @@ async def test_proxy_settings(request: ProxySettings):
     import time
     from curl_cffi import requests as cffi_requests
 
+    # Если пароль не передан (скрыт в UI), подставляем из сохранённых настроек
+    password = request.password
+    if not password and request.username:
+        settings = get_settings()
+        pw = settings.proxy_password
+        if pw:
+            password = pw.get_secret_value() if hasattr(pw, 'get_secret_value') else str(pw)
+
     auth = ""
-    if request.username and request.password:
-        auth = f"{request.username}:{request.password}@"
+    if request.username and password:
+        from urllib.parse import quote
+        auth = f"{quote(str(request.username), safe='')}:{quote(str(password), safe='')}@"
 
     # Определяем порядок попыток: выбранный тип первым, потом альтернативный
     schemes_to_try = []
