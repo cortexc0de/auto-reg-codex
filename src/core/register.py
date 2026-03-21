@@ -491,49 +491,94 @@ class RegistrationEngine:
             return False
 
     def _get_workspace_id(self) -> Optional[str]:
-        """Получение Workspace ID"""
-        try:
-            auth_cookie = self.session.cookies.get("oai-client-auth-session")
-            if not auth_cookie:
-                self._log("Не удалось получить Cookie авторизации", "error")
-                return None
+        """Получение Workspace ID из cookie или через API"""
+        import base64
+        import json as json_module
 
-            # Декодирование JWT
-            import base64
-            import json as json_module
-
+        # Метод 1: из cookie oai-client-auth-session
+        auth_cookie = self.session.cookies.get("oai-client-auth-session")
+        if auth_cookie:
             try:
+                # Пробуем все сегменты JWT (payload обычно [1], но бывает [0])
                 segments = auth_cookie.split(".")
-                if len(segments) < 1:
-                    self._log("Неверный формат Cookie авторизации", "error")
-                    return None
+                for idx in (1, 0, 2):
+                    if idx >= len(segments):
+                        continue
+                    try:
+                        payload = segments[idx]
+                        pad = "=" * ((4 - (len(payload) % 4)) % 4)
+                        decoded = base64.urlsafe_b64decode((payload + pad).encode("ascii"))
+                        auth_json = json_module.loads(decoded.decode("utf-8"))
 
-                # Декодирование первого сегмента
-                payload = segments[0]
-                pad = "=" * ((4 - (len(payload) % 4)) % 4)
-                decoded = base64.urlsafe_b64decode((payload + pad).encode("ascii"))
-                auth_json = json_module.loads(decoded.decode("utf-8"))
+                        # Вариант 1: поле "workspaces"
+                        workspaces = auth_json.get("workspaces") or []
+                        if workspaces:
+                            wid = str((workspaces[0] or {}).get("id") or "").strip()
+                            if wid:
+                                self._log(f"Workspace ID (cookie/workspaces): {wid}")
+                                return wid
 
-                workspaces = auth_json.get("workspaces") or []
-                if not workspaces:
-                    self._log("В Cookie нет информации о workspace", "error")
-                    return None
+                        # Вариант 2: поле "workspace_id" напрямую
+                        wid = str(auth_json.get("workspace_id") or "").strip()
+                        if wid:
+                            self._log(f"Workspace ID (cookie/workspace_id): {wid}")
+                            return wid
 
-                workspace_id = str((workspaces[0] or {}).get("id") or "").strip()
-                if not workspace_id:
-                    self._log("Невозможно распарсить workspace_id", "error")
-                    return None
+                        # Вариант 3: вложенный auth-объект OpenAI
+                        auth_data = auth_json.get("https://api.openai.com/auth") or {}
+                        wid = str(auth_data.get("chatgpt_account_id") or "").strip()
+                        if wid:
+                            self._log(f"Workspace ID (cookie/account_id): {wid}")
+                            return wid
 
-                self._log(f"Workspace ID: {workspace_id}")
-                return workspace_id
+                    except Exception:
+                        continue
 
+                self._log("Cookie есть, но workspace_id не найден — пробую API", "warning")
             except Exception as e:
-                self._log(f"Ошибка парсинга Cookie авторизации: {e}", "error")
-                return None
+                self._log(f"Ошибка парсинга cookie: {e}", "warning")
+        else:
+            self._log("Cookie oai-client-auth-session отсутствует — пробую API", "warning")
 
+        # Метод 2: через API workspace/list
+        try:
+            response = self.session.get(
+                "https://auth.openai.com/api/accounts/workspace/list",
+                headers={"content-type": "application/json"},
+                timeout=15,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                workspaces = data if isinstance(data, list) else (data.get("workspaces") or data.get("items") or [])
+                if workspaces:
+                    wid = str((workspaces[0] if isinstance(workspaces[0], str) else (workspaces[0] or {}).get("id", ""))).strip()
+                    if wid:
+                        self._log(f"Workspace ID (API/list): {wid}")
+                        return wid
+                self._log(f"API workspace/list вернул: {str(data)[:200]}", "warning")
         except Exception as e:
-            self._log(f"Ошибка получения Workspace ID: {e}", "error")
-            return None
+            self._log(f"Ошибка API workspace/list: {e}", "warning")
+
+        # Метод 3: через API accounts/check
+        try:
+            response = self.session.get(
+                "https://chatgpt.com/backend-api/accounts/check/v4-2023-04-27",
+                headers={"content-type": "application/json"},
+                timeout=15,
+            )
+            if response.status_code == 200:
+                data = response.json()
+                accounts = data.get("accounts") or {}
+                for account_id, info in accounts.items():
+                    if account_id and account_id != "default":
+                        self._log(f"Workspace ID (API/accounts-check): {account_id}")
+                        return account_id
+                self._log(f"API accounts/check вернул: {str(data)[:200]}", "warning")
+        except Exception as e:
+            self._log(f"Ошибка API accounts/check: {e}", "warning")
+
+        self._log("Не удалось получить Workspace ID ни одним способом", "error")
+        return None
 
     def _select_workspace(self, workspace_id: str) -> Optional[str]:
         """Выбор Workspace"""
