@@ -619,6 +619,78 @@ class RegistrationEngine:
             self._log(f"Ошибка выбора Workspace: {e}", "error")
             return None
 
+    def _try_skip_phone(self) -> Optional[str]:
+        """Попытка пропустить верификацию по телефону"""
+        # Способ 1: POST authorize/continue — OpenAI иногда позволяет skip
+        try:
+            self._log("Попытка skip через authorize/continue (POST)...")
+            resp = self.session.post(
+                OPENAI_API_ENDPOINTS["signup"],
+                headers={
+                    "content-type": "application/json",
+                    "accept": "application/json",
+                },
+                data="{}",
+                timeout=15,
+            )
+            if resp.status_code == 200:
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {}
+                url = str(data.get("continue_url") or data.get("redirect_url") or "").strip()
+                page = str((data.get("page") or {}).get("type") or "")
+                self._log(f"authorize/continue ответ: status={resp.status_code}, page={page}, url={url[:80] if url else 'none'}")
+                if url and "/add-phone" not in url and page not in ("add_phone", "phone_verification"):
+                    return url
+        except Exception as e:
+            self._log(f"skip authorize/continue: {e}", "warning")
+
+        # Способ 2: GET /add-phone с параметром skip
+        try:
+            self._log("Попытка skip через GET /add-phone?skip=true...")
+            resp = self.session.get(
+                "https://auth.openai.com/add-phone?skip=true",
+                allow_redirects=False,
+                timeout=15,
+            )
+            location = resp.headers.get("Location", "")
+            self._log(f"add-phone?skip: status={resp.status_code}, location={location[:80] if location else 'none'}")
+            if location and "code=" in location and "state=" in location:
+                return location
+            if resp.status_code in (301, 302, 303, 307, 308) and location:
+                return location
+        except Exception as e:
+            self._log(f"skip add-phone: {e}", "warning")
+
+        # Способ 3: POST /api/accounts/phone/skip
+        for skip_path in [
+            "https://auth.openai.com/api/accounts/phone/skip",
+            "https://auth.openai.com/api/accounts/add-phone/skip",
+            "https://auth.openai.com/api/accounts/phone-verification/skip",
+        ]:
+            try:
+                resp = self.session.post(
+                    skip_path,
+                    headers={"content-type": "application/json", "accept": "application/json"},
+                    data="{}",
+                    timeout=10,
+                )
+                self._log(f"skip {skip_path.split('/')[-1]}: status={resp.status_code}, body={resp.text[:150]}")
+                if resp.status_code == 200:
+                    try:
+                        data = resp.json()
+                    except Exception:
+                        data = {}
+                    url = str(data.get("continue_url") or data.get("redirect_url") or "").strip()
+                    if url and "/add-phone" not in url:
+                        return url
+            except Exception:
+                continue
+
+        self._log("Не удалось пропустить верификацию по телефону", "error")
+        return None
+
     def _follow_redirects(self, start_url: str) -> Optional[str]:
         """Следование по цепочке редиректов"""
         try:
@@ -798,13 +870,24 @@ class RegistrationEngine:
                     result.error_message = "Ошибка создания аккаунта"
                     return result
 
-            # 13. Получение Workspace ID + выбор + OAuth
-            # Проверяем, вернул ли create_account continue_url напрямую
+            # 13. Получение continue_url для OAuth
+            # Проверяем ответ create_account
             continue_url = str(self._create_account_response.get("continue_url") or "").strip()
+            page_type = str((self._create_account_response.get("page") or {}).get("type") or "").strip()
 
-            if continue_url:
+            # Если OpenAI требует телефон — пробуем пропустить
+            if page_type in ("add_phone", "phone_verification"):
+                self._log("13. OpenAI требует номер телефона — пробуем пропустить...", "warning")
+                continue_url = self._try_skip_phone()
+
+            elif continue_url and "/add-phone" in continue_url:
+                self._log("13. continue_url ведёт на add-phone — пробуем пропустить...", "warning")
+                continue_url = self._try_skip_phone()
+
+            elif continue_url:
                 self._log("13. continue_url получен из ответа create_account")
-            else:
+
+            if not continue_url:
                 # Пробуем классический путь: workspace → select → continue_url
                 self._log("13. Получение Workspace ID...")
                 workspace_id = self._get_workspace_id()
@@ -815,7 +898,7 @@ class RegistrationEngine:
 
             if not continue_url:
                 # Последняя попытка — authorize/continue напрямую
-                self._log("13. Workspace не найден, пробуем authorize/continue...", "warning")
+                self._log("13. Пробуем authorize/continue напрямую...", "warning")
                 try:
                     resp = self.session.get(
                         OPENAI_API_ENDPOINTS["signup"],
@@ -824,16 +907,17 @@ class RegistrationEngine:
                     )
                     if resp.status_code == 200:
                         data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
-                        continue_url = str(data.get("continue_url") or data.get("redirect_url") or "").strip()
-                        if continue_url:
+                        url = str(data.get("continue_url") or data.get("redirect_url") or "").strip()
+                        if url and "/add-phone" not in url:
+                            continue_url = url
                             self._log(f"continue_url из authorize/continue: {continue_url[:80]}...")
-                    if not continue_url:
-                        self._log(f"authorize/continue не дал URL. Status: {resp.status_code}, Body: {resp.text[:200]}", "warning")
+                        else:
+                            self._log(f"authorize/continue: {resp.text[:200]}", "warning")
                 except Exception as e:
                     self._log(f"Ошибка authorize/continue: {e}", "warning")
 
             if not continue_url:
-                result.error_message = "Не удалось получить continue_url (workspace/select/authorize)"
+                result.error_message = "OpenAI требует верификацию по телефону. Обход не удался."
                 return result
 
             # 15. Следование по цепочке редиректов
