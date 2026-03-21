@@ -133,6 +133,7 @@ class RegistrationEngine:
         self.logs: list = []
         self._otp_sent_at: Optional[float] = None  # Временная метка отправки OTP
         self._is_existing_account: bool = False  # Существующий аккаунт (для автоматической авторизации)
+        self._create_account_response: Dict[str, Any] = {}  # Ответ create_account
 
     def _log(self, message: str, level: str = "info"):
         """Запись лога"""
@@ -484,6 +485,13 @@ class RegistrationEngine:
                 self._log(f"Ошибка создания аккаунта: {response.text[:200]}", "warning")
                 return False
 
+            # Сохраняем ответ — может содержать continue_url или workspace info
+            try:
+                self._create_account_response = response.json()
+                self._log(f"Ответ create_account: {str(self._create_account_response)[:200]}")
+            except Exception:
+                self._create_account_response = {}
+
             return True
 
         except Exception as e:
@@ -790,20 +798,42 @@ class RegistrationEngine:
                     result.error_message = "Ошибка создания аккаунта"
                     return result
 
-            # 13. Получение Workspace ID
-            self._log("13. Получение Workspace ID...")
-            workspace_id = self._get_workspace_id()
-            if not workspace_id:
-                result.error_message = "Ошибка получения Workspace ID"
-                return result
+            # 13. Получение Workspace ID + выбор + OAuth
+            # Проверяем, вернул ли create_account continue_url напрямую
+            continue_url = str(self._create_account_response.get("continue_url") or "").strip()
 
-            result.workspace_id = workspace_id
+            if continue_url:
+                self._log("13. continue_url получен из ответа create_account")
+            else:
+                # Пробуем классический путь: workspace → select → continue_url
+                self._log("13. Получение Workspace ID...")
+                workspace_id = self._get_workspace_id()
+                if workspace_id:
+                    result.workspace_id = workspace_id
+                    self._log("14. Выбор Workspace...")
+                    continue_url = self._select_workspace(workspace_id)
 
-            # 14. Выбор Workspace
-            self._log("14. Выбор Workspace...")
-            continue_url = self._select_workspace(workspace_id)
             if not continue_url:
-                result.error_message = "Ошибка выбора Workspace"
+                # Последняя попытка — authorize/continue напрямую
+                self._log("13. Workspace не найден, пробуем authorize/continue...", "warning")
+                try:
+                    resp = self.session.get(
+                        OPENAI_API_ENDPOINTS["signup"],
+                        headers={"accept": "application/json"},
+                        timeout=15,
+                    )
+                    if resp.status_code == 200:
+                        data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+                        continue_url = str(data.get("continue_url") or data.get("redirect_url") or "").strip()
+                        if continue_url:
+                            self._log(f"continue_url из authorize/continue: {continue_url[:80]}...")
+                    if not continue_url:
+                        self._log(f"authorize/continue не дал URL. Status: {resp.status_code}, Body: {resp.text[:200]}", "warning")
+                except Exception as e:
+                    self._log(f"Ошибка authorize/continue: {e}", "warning")
+
+            if not continue_url:
+                result.error_message = "Не удалось получить continue_url (workspace/select/authorize)"
                 return result
 
             # 15. Следование по цепочке редиректов
