@@ -142,21 +142,24 @@ function renderMessages(messages) {
         return;
     }
 
-    msgEl.innerHTML = messages.map(msg => {
-        const from = msg.from || msg.sender || '—';
+    msgEl.innerHTML = messages.map((msg, idx) => {
+        const from = msg.from || msg.from_addr || msg.sender || '—';
         const subject = msg.subject || '(без темы)';
         const body = msg.text || msg.body || msg.html || '';
         const date = msg.date || msg.created_at || msg.received_at || '';
         const formattedDate = date ? new Date(date).toLocaleString('ru-RU') : '';
-        const preview = body.length > 300 ? body.substring(0, 300) + '…' : body;
+        const preview = body.length > 150 ? body.substring(0, 150) + '…' : body;
+        const hasMore = body.length > 150;
 
-        return `<div class="message-card">
+        return `<div class="message-card" onclick="toggleMessage(${idx})" style="cursor:pointer">
             <div class="message-header">
                 <span class="message-from">От: <strong>${escapeHtml(from)}</strong></span>
                 <span class="message-date">${formattedDate}</span>
             </div>
-            <div class="message-subject">Тема: ${escapeHtml(subject)}</div>
-            <div class="message-body">${escapeHtml(preview)}</div>
+            <div class="message-subject">📩 ${escapeHtml(subject)}</div>
+            <div class="message-preview" id="msg-preview-${idx}">${escapeHtml(preview)}</div>
+            <div class="message-full" id="msg-full-${idx}" style="display:none; margin-top:8px; padding:12px; background:var(--bg-secondary); border-radius:8px; white-space:pre-wrap; font-size:0.9em; max-height:500px; overflow-y:auto;">${escapeHtml(body)}</div>
+            ${hasMore ? `<div class="message-toggle" id="msg-toggle-${idx}" style="margin-top:4px; color:var(--primary); font-size:0.85em;">▸ Показать полностью</div>` : ''}
         </div>`;
     }).join('');
 }
@@ -166,6 +169,24 @@ function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+function toggleMessage(idx) {
+    const preview = document.getElementById(`msg-preview-${idx}`);
+    const full = document.getElementById(`msg-full-${idx}`);
+    const toggle = document.getElementById(`msg-toggle-${idx}`);
+    if (!full) return;
+
+    const isOpen = full.style.display !== 'none';
+    if (isOpen) {
+        full.style.display = 'none';
+        if (preview) preview.style.display = '';
+        if (toggle) toggle.textContent = '▸ Показать полностью';
+    } else {
+        full.style.display = '';
+        if (preview) preview.style.display = 'none';
+        if (toggle) toggle.textContent = '▾ Свернуть';
+    }
 }
 
 // ============================================
