@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS messages (
   from_addr TEXT NOT NULL DEFAULT '',
   subject TEXT NOT NULL DEFAULT '',
   body TEXT NOT NULL DEFAULT '',
+  html_body TEXT NOT NULL DEFAULT '',
   raw_email TEXT NOT NULL DEFAULT '',
   received_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

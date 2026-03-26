@@ -34,7 +34,7 @@ export default {
     const from = message.from;
     const subject = message.headers.get("subject") || "(no subject)";
 
-    // Read full body
+    // Read full raw email
     const reader = message.raw.getReader();
     const chunks = [];
     while (true) {
@@ -42,29 +42,82 @@ export default {
       if (done) break;
       chunks.push(value);
     }
-    const rawEmail = new TextDecoder().decode(
-      new Uint8Array(chunks.reduce((acc, c) => acc + c.length, 0)).map(
-        (_, i) => {
-          let offset = 0;
-          for (const chunk of chunks) {
-            if (i < offset + chunk.length) return chunk[i - offset];
-            offset += chunk.length;
-          }
-          return 0;
-        }
-      )
-    );
+    const totalLen = chunks.reduce((a, c) => a + c.length, 0);
+    const merged = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    const rawEmail = new TextDecoder().decode(merged);
 
-    // Extract text body (simple: everything after double newline)
-    const bodyStart = rawEmail.indexOf("\r\n\r\n");
-    const textBody = bodyStart > -1 ? rawEmail.slice(bodyStart + 4) : rawEmail;
+    // Parse MIME: extract text and HTML parts
+    let textBody = "";
+    let htmlBody = "";
+
+    const contentType = message.headers.get("content-type") || "";
+
+    if (contentType.includes("multipart/")) {
+      // Extract boundary
+      const boundaryMatch = contentType.match(/boundary="?([^";\s]+)"?/i);
+      if (boundaryMatch) {
+        const boundary = boundaryMatch[1];
+        const parts = rawEmail.split("--" + boundary);
+        for (const part of parts) {
+          const headerEnd = part.indexOf("\r\n\r\n");
+          if (headerEnd === -1) continue;
+          const partHeaders = part.slice(0, headerEnd).toLowerCase();
+          const partBody = part.slice(headerEnd + 4).replace(/--\s*$/, "").trim();
+
+          if (partHeaders.includes("content-type: text/html")) {
+            htmlBody = partBody;
+          } else if (partHeaders.includes("content-type: text/plain")) {
+            textBody = partBody;
+          } else if (partHeaders.includes("multipart/alternative")) {
+            // Nested multipart — extract inner boundary
+            const innerMatch = partHeaders.match(/boundary="?([^";\s]+)"?/i);
+            if (innerMatch) {
+              const innerParts = part.split("--" + innerMatch[1]);
+              for (const ip of innerParts) {
+                const ihe = ip.indexOf("\r\n\r\n");
+                if (ihe === -1) continue;
+                const iph = ip.slice(0, ihe).toLowerCase();
+                const ipb = ip.slice(ihe + 4).replace(/--\s*$/, "").trim();
+                if (iph.includes("text/html")) htmlBody = ipb;
+                else if (iph.includes("text/plain")) textBody = ipb;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: if no multipart, use raw body
+    if (!textBody && !htmlBody) {
+      const bodyStart = rawEmail.indexOf("\r\n\r\n");
+      const body = bodyStart > -1 ? rawEmail.slice(bodyStart + 4) : rawEmail;
+      if (contentType.includes("text/html")) {
+        htmlBody = body;
+      } else {
+        textBody = body;
+      }
+    }
+
+    // Decode quoted-printable if needed
+    function decodeQP(str) {
+      return str.replace(/=\r?\n/g, "").replace(/=([0-9A-Fa-f]{2})/g, (_, hex) =>
+        String.fromCharCode(parseInt(hex, 16))
+      );
+    }
+    if (textBody.includes("=3D") || textBody.includes("=\r\n")) textBody = decodeQP(textBody);
+    if (htmlBody.includes("=3D") || htmlBody.includes("=\r\n")) htmlBody = decodeQP(htmlBody);
 
     // Store in D1
     await env.DB.prepare(
-      `INSERT INTO messages (mailbox_email, from_addr, subject, body, raw_email, received_at)
-       VALUES (?, ?, ?, ?, ?, datetime('now'))`
+      `INSERT INTO messages (mailbox_email, from_addr, subject, body, html_body, raw_email, received_at)
+       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
     )
-      .bind(to, from, subject, textBody, rawEmail)
+      .bind(to, from, subject, textBody, htmlBody, rawEmail)
       .run();
   },
 
@@ -174,7 +227,7 @@ export default {
       if (!mb) return json({ error: "mailbox not found" }, 404);
 
       const rows = await env.DB.prepare(
-        `SELECT id, from_addr, subject, body, received_at
+        `SELECT id, from_addr, subject, body, html_body, received_at
          FROM messages WHERE mailbox_email = ? ORDER BY received_at DESC LIMIT 50`
       )
         .bind(mb.email)

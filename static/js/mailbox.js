@@ -167,18 +167,36 @@ function openMessage(index) {
     currentView = 'reading';
     const from = msg.from || msg.from_addr || msg.sender || '—';
     const subject = msg.subject || '(без темы)';
-    const body = msg.text || msg.body || msg.html || '';
+    const textBody = msg.text || msg.body || '';
+    const htmlBody = msg.html_body || msg.html || '';
     const date = msg.date || msg.created_at || msg.received_at || '';
     const fullDate = date ? new Date(date).toLocaleString('ru-RU') : '';
     const initial = from.charAt(0).toUpperCase();
+    const hasHtml = htmlBody.trim().length > 0;
 
-    // Update toolbar with back button
+    // Toolbar with back + navigation
+    const prevBtn = index > 0 ? `<button class="btn-back" onclick="openMessage(${index - 1})" title="Предыдущее">‹</button>` : '';
+    const nextBtn = index < currentMessages.length - 1 ? `<button class="btn-back" onclick="openMessage(${index + 1})" title="Следующее">›</button>` : '';
+
     document.getElementById('mail-toolbar').innerHTML = `
         <button class="btn-back" onclick="backToInbox()" title="Назад">← Назад</button>
-        <h3 style="flex:1;margin:0;font-size:0.9rem;color:var(--text-muted);">Сообщение ${index + 1} из ${currentMessages.length}</h3>
+        <h3 style="flex:1;margin:0;font-size:0.9rem;color:var(--text-muted);">
+            Сообщение ${index + 1} из ${currentMessages.length}
+        </h3>
+        ${prevBtn} ${nextBtn}
     `;
 
-    // Render full message
+    // Build body content
+    let bodyHtml;
+    if (hasHtml) {
+        // Render HTML email in sandboxed iframe
+        bodyHtml = `<iframe id="msg-iframe" sandbox="allow-same-origin"
+            style="width:100%;border:none;border-radius:var(--radius);background:white;min-height:300px;"
+            srcdoc="${esc(htmlBody).replace(/"/g, '&quot;')}"></iframe>`;
+    } else {
+        bodyHtml = `<div class="msg-view-body">${esc(textBody)}</div>`;
+    }
+
     document.getElementById('mail-content').innerHTML = `
         <div class="msg-view">
             <div class="msg-view-subject">${esc(subject)}</div>
@@ -190,9 +208,21 @@ function openMessage(index) {
                 </div>
                 <div class="msg-view-date">${fullDate}</div>
             </div>
-            <div class="msg-view-body">${esc(body)}</div>
+            ${bodyHtml}
+            ${hasHtml && textBody ? `<details style="margin-top:12px;"><summary style="cursor:pointer;color:var(--text-muted);font-size:0.85rem;">Текстовая версия</summary><div class="msg-view-body" style="margin-top:8px;">${esc(textBody)}</div></details>` : ''}
         </div>
     `;
+
+    // Auto-resize iframe
+    if (hasHtml) {
+        setTimeout(() => {
+            const iframe = document.getElementById('msg-iframe');
+            if (iframe && iframe.contentDocument) {
+                const h = iframe.contentDocument.body.scrollHeight;
+                iframe.style.height = Math.min(Math.max(h + 30, 200), 800) + 'px';
+            }
+        }, 300);
+    }
 }
 
 function backToInbox() {
