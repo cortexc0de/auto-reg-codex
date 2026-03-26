@@ -26,6 +26,7 @@ class SettingCategory(str, Enum):
     SECURITY = "security"
     CPA = "cpa"
     ABUZOVO = "abuzovo"
+    AXIOMLAUNCHER = "axiomlauncher"
     WORKSPACE = "workspace"
 
 
@@ -247,7 +248,7 @@ SETTING_DEFINITIONS: Dict[str, SettingDefinition] = {
     # Конфигурация почтовых сервисов
     "email_service_priority": SettingDefinition(
         db_key="email.service_priority",
-        default_value={"tempmail": 0, "outlook": 1, "custom_domain": 2, "abuzovo": 3},
+        default_value={"tempmail": 0, "outlook": 1, "custom_domain": 2, "abuzovo": 3, "axiomlauncher": 4},
         category=SettingCategory.EMAIL,
         description="Приоритет почтовых сервисов"
     ),
@@ -384,6 +385,14 @@ SETTING_DEFINITIONS: Dict[str, SettingDefinition] = {
     "abuzovo_api_token": SettingDefinition("abuzovo.api_token", "", SettingCategory.ABUZOVO, "API Bearer-токен Abuzovo", is_secret=True),
     "abuzovo_default_domain_id": SettingDefinition("abuzovo.default_domain_id", "", SettingCategory.ABUZOVO, "ID домена по умолчанию для создания ящиков"),
     "abuzovo_email_type": SettingDefinition("abuzovo.email_type", "random", SettingCategory.ABUZOVO, "Тип создания ящика (random)"),
+
+    # Конфигурация AxiomLauncher
+    "axiomlauncher_enabled": SettingDefinition("axiomlauncher.enabled", False, SettingCategory.AXIOMLAUNCHER, "Включить AxiomLauncher email-сервис"),
+    "axiomlauncher_api_url": SettingDefinition("axiomlauncher.api_url", "https://email-worker.axiomlauncher.workers.dev", SettingCategory.AXIOMLAUNCHER, "URL API AxiomLauncher"),
+    "axiomlauncher_api_token": SettingDefinition("axiomlauncher.api_token", "", SettingCategory.AXIOMLAUNCHER, "API Bearer-токен AxiomLauncher", is_secret=True),
+    "axiomlauncher_default_domain": SettingDefinition("axiomlauncher.default_domain", "axiomlauncher.online", SettingCategory.AXIOMLAUNCHER, "Домен по умолчанию для создания ящиков"),
+    "axiomlauncher_email_prefix": SettingDefinition("axiomlauncher.email_prefix", "user_", SettingCategory.AXIOMLAUNCHER, "Префикс имени почтового ящика"),
+
     "workspace_monitoring_enabled": SettingDefinition("workspace.monitoring_enabled", False, SettingCategory.WORKSPACE, "Включить мониторинг рабочих областей"),
     "workspace_monitoring_interval": SettingDefinition("workspace.monitoring_interval", 300, SettingCategory.WORKSPACE, "Интервал проверки в секундах"),
     "workspace_auto_kick_enabled": SettingDefinition("workspace.auto_kick_enabled", False, SettingCategory.WORKSPACE, "Автоматический кик просроченных"),
@@ -421,6 +430,7 @@ SETTING_TYPES: Dict[str, Type] = {
     "outlook_health_failure_threshold": int,
     "outlook_health_disable_duration": int,
     "abuzovo.enabled": bool,
+    "axiomlauncher.enabled": bool,
     "workspace.monitoring_enabled": bool,
     "workspace.monitoring_interval": int,
     "workspace.auto_kick_enabled": bool,
@@ -654,7 +664,7 @@ class Settings(BaseModel):
     registration_sleep_max: int = 30
 
     # Конфигурация почтовых сервисов
-    email_service_priority: Dict[str, int] = {"tempmail": 0, "outlook": 1, "custom_domain": 2, "abuzovo": 3}
+    email_service_priority: Dict[str, int] = {"tempmail": 0, "outlook": 1, "custom_domain": 2, "abuzovo": 3, "axiomlauncher": 4}
 
     # Конфигурация Tempmail.lol
     tempmail_base_url: str = "https://api.tempmail.lol/v2"
@@ -694,6 +704,13 @@ class Settings(BaseModel):
     abuzovo_api_token: SecretStr = SecretStr("")
     abuzovo_default_domain_id: str = ""
     abuzovo_email_type: str = "random"
+
+    # Конфигурация AxiomLauncher
+    axiomlauncher_enabled: bool = False
+    axiomlauncher_api_url: str = "https://email-worker.axiomlauncher.workers.dev"
+    axiomlauncher_api_token: SecretStr = SecretStr("")
+    axiomlauncher_default_domain: str = "axiomlauncher.online"
+    axiomlauncher_email_prefix: str = "user_"
 
     # Конфигурация Workspace Manager
     workspace_monitoring_enabled: bool = False

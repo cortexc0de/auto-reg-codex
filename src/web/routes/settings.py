@@ -1057,6 +1057,83 @@ def test_abuzovo_connection():
         return {"success": False, "message": f"Ошибка: {str(e)}"}
 
 
+# ============== Настройки AxiomLauncher ==============
+
+class AxiomLauncherSettingsRequest(BaseModel):
+    enabled: Optional[bool] = None
+    api_url: Optional[str] = None
+    api_token: Optional[str] = None
+    default_domain: Optional[str] = None
+    email_prefix: Optional[str] = None
+
+
+@router.get("/axiomlauncher")
+def get_axiomlauncher_settings():
+    """Получение настроек AxiomLauncher"""
+    settings = get_settings()
+    return {
+        "enabled": settings.axiomlauncher_enabled,
+        "api_url": settings.axiomlauncher_api_url,
+        "has_token": bool(settings.axiomlauncher_api_token and settings.axiomlauncher_api_token.get_secret_value()),
+        "default_domain": settings.axiomlauncher_default_domain,
+        "email_prefix": settings.axiomlauncher_email_prefix,
+    }
+
+
+@router.post("/axiomlauncher")
+def update_axiomlauncher_settings(request: AxiomLauncherSettingsRequest):
+    """Обновить настройки AxiomLauncher"""
+    updates = {}
+    if request.enabled is not None:
+        updates["axiomlauncher_enabled"] = request.enabled
+    if request.api_url is not None:
+        updates["axiomlauncher_api_url"] = request.api_url
+    if request.api_token is not None:
+        updates["axiomlauncher_api_token"] = request.api_token
+    if request.default_domain is not None:
+        updates["axiomlauncher_default_domain"] = request.default_domain
+    if request.email_prefix is not None:
+        updates["axiomlauncher_email_prefix"] = request.email_prefix
+    if updates:
+        update_settings(**updates)
+    return {"success": True, "message": "Настройки AxiomLauncher обновлены"}
+
+
+@router.post("/axiomlauncher/test")
+def test_axiomlauncher_connection():
+    """Тест подключения к AxiomLauncher API"""
+    from curl_cffi import requests as cffi_requests
+
+    settings = get_settings()
+    api_url = settings.axiomlauncher_api_url.rstrip("/")
+    api_token = settings.axiomlauncher_api_token.get_secret_value() if settings.axiomlauncher_api_token else ""
+
+    if not api_token:
+        raise HTTPException(status_code=400, detail="API токен не настроен")
+
+    try:
+        resp = cffi_requests.get(
+            f"{api_url}/api/v1/domains",
+            headers={"Authorization": f"Bearer {api_token}"},
+            timeout=15,
+            impersonate="chrome120",
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            domains = data.get("domains", [])
+            return {
+                "success": True,
+                "message": f"Подключение успешно. Доменов: {len(domains)}",
+                "domains": domains,
+            }
+        elif resp.status_code == 401:
+            return {"success": False, "message": "Неверный API токен"}
+        else:
+            return {"success": False, "message": f"HTTP {resp.status_code}"}
+    except Exception as e:
+        return {"success": False, "message": f"Ошибка: {str(e)}"}
+
+
 # ============== Workspace Settings ==============
 
 class WorkspaceSettingsRequest(BaseModel):

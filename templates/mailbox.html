@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Почтовые ящики — Система регистрации OpenAI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .mailbox-container {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: var(--spacing-md);
+            min-height: 500px;
+        }
+        .mailbox-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .mailbox-row:hover {
+            background: var(--bg-tertiary);
+        }
+        .mailbox-email {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            margin-right: var(--spacing-sm);
+            font-size: 0.9rem;
+        }
+        .message-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+        }
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-xs);
+        }
+        .message-from {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        .message-date {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        .message-subject {
+            font-weight: 600;
+            margin-bottom: var(--spacing-xs);
+        }
+        .message-body {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        @media (max-width: 768px) {
+            .mailbox-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand"><h1>Система регистрации OpenAI</h1></div>
+        <div class="nav-links">
+            <a href="/" class="nav-link">Регистрация</a>
+            <a href="/accounts" class="nav-link">Аккаунты</a>
+            <a href="/email-services" class="nav-link">Почтовые сервисы</a>
+            <a href="/payment" class="nav-link">Оплата</a>
+            <a href="/workspace" class="nav-link">Рабочие области</a>
+            <a href="/mailbox" class="nav-link active">Почта</a>
+            <a href="/settings" class="nav-link">Настройки</a>
+        </div>
+        <button class="theme-toggle" onclick="theme.toggle()" title="Переключить тему">🌙</button>
+    </nav>
+
+    <div class="container main-content">
+        <!-- Заголовок -->
+        <div class="page-header">
+            <h2>✉️ Почтовые ящики</h2>
+            <p class="subtitle">Управление почтовыми ящиками Abuzovo и AxiomLauncher</p>
+        </div>
+
+        <!-- Табы сервисов -->
+        <div class="card" style="margin-bottom: var(--spacing-md);">
+            <div class="card-body">
+                <div class="tabs" id="service-tabs">
+                    <!-- заполняется JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Основной контент -->
+        <div class="mailbox-container">
+            <!-- Левая колонка: список ящиков -->
+            <div class="card">
+                <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+                    <h3>📮 Ящики <span id="mailbox-count" class="status-badge" style="margin-left:8px;">0</span></h3>
+                    <div>
+                        <button class="btn btn-ghost btn-sm" onclick="refreshMailboxes()" title="Обновить">🔄</button>
+                        <button class="btn btn-primary btn-sm" onclick="createMailbox()">+ Создать</button>
+                    </div>
+                </div>
+                <div class="card-body" id="mailbox-list" style="padding:0; max-height:600px; overflow-y:auto;">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div class="empty-state-title">Выберите сервис</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая колонка: сообщения -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 id="messages-title">📨 Входящие</h3>
+                </div>
+                <div class="card-body" id="messages-list" style="max-height:600px; overflow-y:auto;">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📬</div>
+                        <div class="empty-state-title">Нет сообщений</div>
+                        <p class="empty-state-description">Выберите ящик слева</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/mailbox.js"></script>
+</body>
+</html>

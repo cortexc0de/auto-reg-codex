@@ -20,6 +20,7 @@
                 <a href="/email-services" class="nav-link">Почтовые сервисы</a>
                 <a href="/payment" class="nav-link">Оплата</a>
                 <a href="/workspace" class="nav-link">Рабочие области</a>
+                <a href="/mailbox" class="nav-link">Почта</a>
                 <a href="/settings" class="nav-link active">Настройки</a>
             </div>
             <button class="theme-toggle" onclick="theme.toggle()" title="Переключить тему">
@@ -43,6 +44,7 @@
                 <button class="tab-btn" data-tab="registration">⚙️ Регистрация</button>
                 <button class="tab-btn" data-tab="email-code">📧 Код подтверждения</button>
                 <button class="tab-btn" data-tab="abuzovo">📨 Abuzovo</button>
+                <button class="tab-btn" data-tab="axiomlauncher">📧 AxiomLauncher</button>
                 <button class="tab-btn" data-tab="database">💾 База данных</button>
                 <button class="tab-btn" data-tab="workspace">🏢 Workspace</button>
             </div>
@@ -513,6 +515,56 @@
                             <div class="form-actions">
                                 <button type="submit" class="btn btn-primary">💾 Сохранить</button>
                                 <button type="button" class="btn btn-secondary" id="test-abuzovo-btn">🔌 Тест подключения</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Настройки AxiomLauncher -->
+            <div class="tab-content" id="axiomlauncher-tab">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Настройка AxiomLauncher</h3>
+                        <span class="hint">Настройка email-сервиса AxiomLauncher для создания почтовых ящиков</span>
+                    </div>
+                    <div class="card-body">
+                        <form id="axiomlauncher-form">
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="axiomlauncher-enabled" name="enabled">
+                                    Включить AxiomLauncher
+                                </label>
+                                <p class="hint">После включения можно использовать AxiomLauncher для создания email</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="axiomlauncher-api-url">URL API</label>
+                                <input type="text" id="axiomlauncher-api-url" name="api_url" placeholder="Например: https://email-worker.axiomlauncher.workers.dev">
+                                <p class="hint">Адрес API сервиса AxiomLauncher</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="axiomlauncher-api-token">API токен</label>
+                                <input type="password" id="axiomlauncher-api-token" name="api_token" placeholder="Оставьте пустым для сохранения" autocomplete="new-password">
+                                <p class="hint">Bearer-токен для аутентификации в AxiomLauncher API</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="axiomlauncher-default-domain">Домен по умолчанию</label>
+                                <input type="text" id="axiomlauncher-default-domain" name="default_domain" placeholder="axiomlauncher.online">
+                                <p class="hint">Домен для создания почтовых ящиков</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="axiomlauncher-email-prefix">Префикс email</label>
+                                <input type="text" id="axiomlauncher-email-prefix" name="email_prefix" placeholder="user_">
+                                <p class="hint">Префикс для имени почтового ящика</p>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+                                <button type="button" class="btn btn-secondary" id="test-axiomlauncher-btn">🔌 Тест подключения</button>
                             </div>
                         </form>
                     </div>

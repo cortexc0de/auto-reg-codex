@@ -55,6 +55,9 @@ const elements = {
     // Настройки Abuzovo
     abuzovoForm: document.getElementById('abuzovo-form'),
     testAbuzvoBtn: document.getElementById('test-abuzovo-btn'),
+    // Настройки AxiomLauncher
+    axiomlaucherForm: document.getElementById('axiomlauncher-form'),
+    testAxiomlauncherBtn: document.getElementById('test-axiomlauncher-btn'),
     // Настройки кода подтверждения
     emailCodeForm: document.getElementById('email-code-form'),
     // Настройки Outlook
@@ -304,6 +307,14 @@ function initEventListeners() {
     if (elements.testAbuzvoBtn) {
         elements.testAbuzvoBtn.addEventListener('click', handleTestAbuzovo);
     }
+
+    // Настройки AxiomLauncher
+    if (elements.axiomlaucherForm) {
+        elements.axiomlaucherForm.addEventListener('submit', handleSaveAxiomLauncher);
+    }
+    if (elements.testAxiomlauncherBtn) {
+        elements.testAxiomlauncherBtn.addEventListener('click', handleTestAxiomLauncher);
+    }
 }
 
 // Загрузка настроек
@@ -345,6 +356,8 @@ async function loadSettings() {
         loadTmSettings();
         // Загрузка настроек Abuzovo
         loadAbuzovoSettings();
+        // Загрузка настроек AxiomLauncher
+        loadAxiomLauncherSettings();
 
     } catch (error) {
         console.error('Ошибка загрузки настроек:', error);
@@ -1352,6 +1365,65 @@ async function handleTestAbuzovo() {
     } finally {
         elements.testAbuzvoBtn.disabled = false;
         elements.testAbuzvoBtn.textContent = '🔌 Тест подключения';
+    }
+}
+
+// ============================================================================
+// Управление настройками AxiomLauncher
+// ============================================================================
+
+async function loadAxiomLauncherSettings() {
+    try {
+        const data = await api.get('/settings/axiomlauncher');
+
+        document.getElementById('axiomlauncher-enabled').checked = data.enabled || false;
+        document.getElementById('axiomlauncher-api-url').value = data.api_url || '';
+        document.getElementById('axiomlauncher-api-token').value = '';
+        document.getElementById('axiomlauncher-api-token').placeholder = data.has_token ? 'Настроено, оставьте пустым для сохранения' : 'Введите API токен';
+        document.getElementById('axiomlauncher-default-domain').value = data.default_domain || '';
+        document.getElementById('axiomlauncher-email-prefix').value = data.email_prefix || 'user_';
+
+    } catch (error) {
+        console.error('Ошибка загрузки настроек AxiomLauncher:', error);
+    }
+}
+
+async function handleSaveAxiomLauncher(e) {
+    e.preventDefault();
+
+    const data = {
+        enabled: document.getElementById('axiomlauncher-enabled').checked,
+        api_url: document.getElementById('axiomlauncher-api-url').value,
+        api_token: document.getElementById('axiomlauncher-api-token').value || null,
+        default_domain: document.getElementById('axiomlauncher-default-domain').value,
+        email_prefix: document.getElementById('axiomlauncher-email-prefix').value,
+    };
+
+    try {
+        await api.post('/settings/axiomlauncher', data);
+        toast.success('Настройки AxiomLauncher сохранены');
+        loadAxiomLauncherSettings();
+    } catch (error) {
+        toast.error('Ошибка сохранения: ' + error.message);
+    }
+}
+
+async function handleTestAxiomLauncher() {
+    elements.testAxiomlauncherBtn.disabled = true;
+    elements.testAxiomlauncherBtn.innerHTML = '<span class="loading-spinner"></span> Тестирование...';
+
+    try {
+        const result = await api.post('/settings/axiomlauncher/test', {});
+        if (result.success) {
+            toast.success(result.message);
+        } else {
+            toast.error(result.message);
+        }
+    } catch (error) {
+        toast.error('Ошибка тестирования: ' + error.message);
+    } finally {
+        elements.testAxiomlauncherBtn.disabled = false;
+        elements.testAxiomlauncherBtn.textContent = '🔌 Тест подключения';
     }
 }
 

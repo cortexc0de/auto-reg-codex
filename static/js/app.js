@@ -22,7 +22,8 @@ let availableServices = {
     tempmail: { available: true, services: [] },
     outlook: { available: false, services: [] },
     custom_domain: { available: false, services: [] },
-    abuzovo: { available: false, services: [] }
+    abuzovo: { available: false, services: [] },
+    axiomlauncher: { available: false, services: [] }
 };
 
 // Переменные WebSocket
@@ -241,6 +242,22 @@ function updateEmailServiceOptions() {
             option.value = `abuzovo:${service.id || 'default'}`;
             option.textContent = service.name;
             option.dataset.type = 'abuzovo';
+            optgroup.appendChild(option);
+        });
+
+        select.appendChild(optgroup);
+    }
+
+    // AxiomLauncher
+    if (availableServices.axiomlauncher && availableServices.axiomlauncher.available) {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = '📧 AxiomLauncher';
+
+        availableServices.axiomlauncher.services.forEach(service => {
+            const option = document.createElement('option');
+            option.value = `axiomlauncher:${service.id || 'default'}`;
+            option.textContent = service.name;
+            option.dataset.type = 'axiomlauncher';
             optgroup.appendChild(option);
         });
 

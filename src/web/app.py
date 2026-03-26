@@ -109,6 +109,11 @@ def create_app() -> FastAPI:
         """Страница управления рабочими областями"""
         return templates.TemplateResponse("workspace.html", {"request": request})
 
+    @app.get("/mailbox", response_class=HTMLResponse)
+    async def mailbox_page(request: Request):
+        """Страница почтовых ящиков"""
+        return templates.TemplateResponse("mailbox.html", {"request": request})
+
     @app.on_event("startup")
     async def startup_event():
         """Событие запуска приложения"""

@@ -14,12 +14,14 @@ from .tempmail import TempmailService
 from .outlook import OutlookService
 from .custom_domain import CustomDomainEmailService
 from .abuzovo import AbuzovEmailService
+from .axiomlauncher import AxiomLauncherEmailService
 
 # Регистрация сервисов
 EmailServiceFactory.register(EmailServiceType.TEMPMAIL, TempmailService)
 EmailServiceFactory.register(EmailServiceType.OUTLOOK, OutlookService)
 EmailServiceFactory.register(EmailServiceType.CUSTOM_DOMAIN, CustomDomainEmailService)
 EmailServiceFactory.register(EmailServiceType.ABUZOVO, AbuzovEmailService)
+EmailServiceFactory.register(EmailServiceType.AXIOMLAUNCHER, AxiomLauncherEmailService)
 
 # Экспорт дополнительного содержимого модуля Outlook
 from .outlook.base import (
@@ -50,6 +52,7 @@ __all__ = [
     'OutlookService',
     'CustomDomainEmailService',
     'AbuzovEmailService',
+    'AxiomLauncherEmailService',
     # Модуль Outlook
     'ProviderType',
     'EmailMessage',

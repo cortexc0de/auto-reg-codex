@@ -35,6 +35,7 @@ class EmailServiceType(str, Enum):
     OUTLOOK = "outlook"
     CUSTOM_DOMAIN = "custom_domain"
     ABUZOVO = "abuzovo"
+    AXIOMLAUNCHER = "axiomlauncher"
 
 
 # ============================================================================
@@ -95,6 +96,13 @@ CUSTOM_DOMAIN_API_ENDPOINTS = {
 
 # Конечные точки API Abuzovo
 ABUZOVO_API_ENDPOINTS = {
+    "domains": "/api/v1/domains",
+    "mailboxes": "/api/v1/mailboxes",
+    "messages": "/api/v1/messages",
+}
+
+# Конечные точки API AxiomLauncher
+AXIOMLAUNCHER_API_ENDPOINTS = {
     "domains": "/api/v1/domains",
     "mailboxes": "/api/v1/mailboxes",
     "messages": "/api/v1/messages",

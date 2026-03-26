@@ -319,6 +319,17 @@ def _run_sync_registration_task(task_uuid: str, email_service_type: str, proxy: 
                         "proxy_url": actual_proxy_url,
                     }
                     logger.info("Используется Abuzovo email сервис")
+                elif service_type == EmailServiceType.AXIOMLAUNCHER:
+                    if not settings.axiomlauncher_enabled:
+                        raise ValueError("AxiomLauncher не включён. Включите в Настройки → AxiomLauncher")
+                    config = {
+                        "api_url": settings.axiomlauncher_api_url,
+                        "api_token": settings.axiomlauncher_api_token.get_secret_value() if settings.axiomlauncher_api_token else "",
+                        "default_domain": settings.axiomlauncher_default_domain or "",
+                        "email_prefix": settings.axiomlauncher_email_prefix or "user_",
+                        "proxy_url": actual_proxy_url,
+                    }
+                    logger.info("Используется AxiomLauncher email сервис")
                 else:
                     config = email_service_config or {}
 
@@ -977,6 +988,25 @@ async def get_available_email_services():
         }
     else:
         result["abuzovo"] = {
+            "available": False,
+            "count": 0,
+            "services": []
+        }
+
+    # AxiomLauncher
+    if settings.axiomlauncher_enabled:
+        result["axiomlauncher"] = {
+            "available": True,
+            "count": 1,
+            "services": [{
+                "id": None,
+                "name": "AxiomLauncher (axiomlauncher.online)",
+                "type": "axiomlauncher",
+                "description": "Почтовые ящики через AxiomLauncher API"
+            }]
+        }
+    else:
+        result["axiomlauncher"] = {
             "available": False,
             "count": 0,
             "services": []
