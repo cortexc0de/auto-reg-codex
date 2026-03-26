@@ -3,71 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Почтовые ящики — Система регистрации OpenAI</title>
+    <title>Почта — Система регистрации OpenAI</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        .mailbox-container {
+        .mail-layout {
             display: grid;
-            grid-template-columns: 380px 1fr;
-            gap: var(--spacing-md);
-            min-height: 500px;
-        }
-        .mailbox-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: var(--spacing-sm) var(--spacing-md);
-            border-bottom: 1px solid var(--border-color);
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .mailbox-row:hover {
-            background: var(--bg-tertiary);
-        }
-        .mailbox-email {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            flex: 1;
-            margin-right: var(--spacing-sm);
-            font-size: 0.9rem;
-        }
-        .message-card {
-            background: var(--bg-secondary);
+            grid-template-columns: 280px 1fr;
+            gap: 0;
+            min-height: 600px;
             border: 1px solid var(--border-color);
             border-radius: var(--radius);
-            padding: var(--spacing-md);
-            margin-bottom: var(--spacing-sm);
+            overflow: hidden;
         }
-        .message-header {
+        /* Sidebar — mailbox list */
+        .mail-sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: var(--spacing-xs);
+            flex-direction: column;
         }
-        .message-from {
-            color: var(--text-secondary);
+        .mail-sidebar-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .mail-sidebar-header h3 { margin: 0; font-size: 0.95rem; }
+        .mail-sidebar-list {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 560px;
+        }
+        .mail-sidebar-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.1s;
+            gap: 8px;
+        }
+        .mail-sidebar-item:hover { background: var(--bg-tertiary); }
+        .mail-sidebar-item.active { background: var(--primary-transparent, rgba(59,130,246,0.1)); border-left: 3px solid var(--primary); }
+        .mail-sidebar-item .mail-avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: var(--primary); color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+        }
+        .mail-sidebar-item .mail-info { flex: 1; min-width: 0; }
+        .mail-sidebar-item .mail-addr {
+            font-size: 0.82rem; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .mail-sidebar-item .mail-meta {
+            font-size: 0.72rem; color: var(--text-muted);
+        }
+        .mail-sidebar-item .mail-badge {
+            background: var(--primary); color: white; border-radius: 10px;
+            padding: 1px 7px; font-size: 0.7rem; font-weight: 600;
+        }
+        .mail-sidebar-item .mail-del {
+            opacity: 0; transition: opacity 0.15s; cursor: pointer;
+            background: none; border: none; font-size: 1rem; padding: 4px;
+        }
+        .mail-sidebar-item:hover .mail-del { opacity: 1; }
+
+        /* Main area — message list + reading view */
+        .mail-main {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+        }
+        .mail-toolbar {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 48px;
+        }
+        .mail-toolbar h3 { margin: 0; font-size: 0.95rem; flex: 1; }
+        .mail-content {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 560px;
+        }
+
+        /* Message list view (inbox) */
+        .msg-row {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.1s;
+            gap: 12px;
+        }
+        .msg-row:hover { background: var(--bg-secondary); }
+        .msg-row.unread { font-weight: 600; }
+        .msg-row .msg-sender {
+            width: 180px; flex-shrink: 0;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             font-size: 0.85rem;
         }
-        .message-date {
-            color: var(--text-muted);
-            font-size: 0.8rem;
-            white-space: nowrap;
+        .msg-row .msg-subject {
+            flex: 1; min-width: 0;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            font-size: 0.85rem;
         }
-        .message-subject {
-            font-weight: 600;
-            margin-bottom: var(--spacing-xs);
+        .msg-row .msg-snippet {
+            color: var(--text-muted); margin-left: 6px; font-weight: 400;
         }
-        .message-body {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
+        .msg-row .msg-time {
+            flex-shrink: 0; font-size: 0.78rem; color: var(--text-muted);
+            width: 100px; text-align: right;
+        }
+
+        /* Single message reading view */
+        .msg-view { padding: 24px; }
+        .msg-view-subject {
+            font-size: 1.3rem; font-weight: 700;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .msg-view-header {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 20px;
+        }
+        .msg-view-avatar {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: var(--primary); color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; font-weight: 700; flex-shrink: 0;
+        }
+        .msg-view-sender { font-weight: 600; font-size: 0.95rem; }
+        .msg-view-email { font-size: 0.8rem; color: var(--text-muted); }
+        .msg-view-date { margin-left: auto; font-size: 0.82rem; color: var(--text-muted); }
+        .msg-view-body {
             white-space: pre-wrap;
             word-break: break-word;
+            line-height: 1.6;
+            font-size: 0.92rem;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            max-height: 400px;
+            overflow-y: auto;
         }
+
+        .btn-back {
+            background: none; border: none; cursor: pointer;
+            font-size: 1.2rem; padding: 4px 8px; border-radius: var(--radius);
+            color: var(--text-primary);
+        }
+        .btn-back:hover { background: var(--bg-tertiary); }
+
         @media (max-width: 768px) {
-            .mailbox-container {
-                grid-template-columns: 1fr;
-            }
+            .mail-layout { grid-template-columns: 1fr; }
+            .mail-sidebar { max-height: 250px; border-right: none; border-bottom: 1px solid var(--border-color); }
+            .msg-row .msg-sender { width: 120px; }
         }
     </style>
 </head>
@@ -87,50 +185,44 @@
     </nav>
 
     <div class="container main-content">
-        <!-- Заголовок -->
         <div class="page-header">
-            <h2>✉️ Почтовые ящики</h2>
-            <p class="subtitle">Управление почтовыми ящиками Abuzovo и AxiomLauncher</p>
+            <h2>✉️ Почта</h2>
+            <p class="subtitle">Управление почтовыми ящиками и просмотр входящих</p>
         </div>
 
-        <!-- Табы сервисов -->
-        <div class="card" style="margin-bottom: var(--spacing-md);">
-            <div class="card-body">
-                <div class="tabs" id="service-tabs">
-                    <!-- заполняется JS -->
-                </div>
-            </div>
+        <!-- Service tabs -->
+        <div style="margin-bottom: var(--spacing-md);">
+            <div class="tabs" id="service-tabs"></div>
         </div>
 
-        <!-- Основной контент -->
-        <div class="mailbox-container">
-            <!-- Левая колонка: список ящиков -->
-            <div class="card">
-                <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
-                    <h3>📮 Ящики <span id="mailbox-count" class="status-badge" style="margin-left:8px;">0</span></h3>
-                    <div>
+        <!-- Gmail-style layout -->
+        <div class="mail-layout">
+            <!-- Left: mailbox list -->
+            <div class="mail-sidebar">
+                <div class="mail-sidebar-header">
+                    <h3>📮 Ящики <span id="mailbox-count" style="font-size:0.8rem;color:var(--text-muted);">(0)</span></h3>
+                    <div style="display:flex;gap:4px;">
                         <button class="btn btn-ghost btn-sm" onclick="refreshMailboxes()" title="Обновить">🔄</button>
-                        <button class="btn btn-primary btn-sm" onclick="createMailbox()">+ Создать</button>
+                        <button class="btn btn-primary btn-sm" onclick="createMailbox()">＋</button>
                     </div>
                 </div>
-                <div class="card-body" id="mailbox-list" style="padding:0; max-height:600px; overflow-y:auto;">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
-                        <div class="empty-state-title">Выберите сервис</div>
+                <div class="mail-sidebar-list" id="mailbox-list">
+                    <div style="padding:40px 16px;text-align:center;color:var(--text-muted);">
+                        Выберите сервис
                     </div>
                 </div>
             </div>
 
-            <!-- Правая колонка: сообщения -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 id="messages-title">📨 Входящие</h3>
+            <!-- Right: messages -->
+            <div class="mail-main">
+                <div class="mail-toolbar" id="mail-toolbar">
+                    <h3 id="toolbar-title">📨 Входящие</h3>
+                    <button class="btn btn-ghost btn-sm" id="btn-refresh-msgs" onclick="refreshMessages()" title="Обновить" style="display:none;">🔄</button>
                 </div>
-                <div class="card-body" id="messages-list" style="max-height:600px; overflow-y:auto;">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📬</div>
-                        <div class="empty-state-title">Нет сообщений</div>
-                        <p class="empty-state-description">Выберите ящик слева</p>
+                <div class="mail-content" id="mail-content">
+                    <div style="padding:60px 16px;text-align:center;color:var(--text-muted);">
+                        <div style="font-size:3rem;margin-bottom:12px;">📬</div>
+                        <div style="font-size:1rem;">Выберите ящик</div>
                     </div>
                 </div>
             </div>

@@ -1,240 +1,260 @@
 /**
- * Почтовые ящики — клиентская логика
+ * Почта — Gmail-style клиентская логика
+ * Состояния: inbox (список писем) | reading (чтение письма)
  */
 
 let currentService = null;
 let mailboxes = [];
+let currentMessages = [];
 let selectedMailboxId = null;
+let currentView = 'inbox'; // 'inbox' | 'reading'
 
-// ============================================
-// Инициализация
-// ============================================
+document.addEventListener('DOMContentLoaded', () => loadServices());
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadServices();
-});
-
-// ============================================
-// Загрузка сервисов
-// ============================================
+// ──────────────────────────────────────
+// Services
+// ──────────────────────────────────────
 
 async function loadServices() {
     try {
         const data = await api.get('/mailbox/services');
         const services = data.services || [];
         renderServiceTabs(services);
-
         const enabled = services.find(s => s.enabled);
-        if (enabled) {
-            selectService(enabled.name);
-        }
+        if (enabled) selectService(enabled.name);
     } catch (e) {
         toast.error('Ошибка загрузки сервисов');
     }
 }
 
 function renderServiceTabs(services) {
-    const container = document.getElementById('service-tabs');
-    container.innerHTML = services.map(s => {
-        const disabledClass = s.enabled ? '' : ' disabled';
-        const disabledAttr = s.enabled ? '' : ' disabled';
-        return `<button class="tab-btn${disabledClass}" id="tab-${s.name}" onclick="selectService('${s.name}')"${disabledAttr}>
+    const c = document.getElementById('service-tabs');
+    c.innerHTML = services.map(s =>
+        `<button class="tab-btn${s.enabled ? '' : ' disabled'}" id="tab-${s.name}"
+            onclick="selectService('${s.name}')" ${s.enabled ? '' : 'disabled'}>
             ${s.label} ${s.enabled ? '✓' : '✕'}
-        </button>`;
-    }).join('');
+        </button>`
+    ).join('');
 }
-
-// ============================================
-// Выбор сервиса
-// ============================================
 
 function selectService(service) {
     currentService = service;
     selectedMailboxId = null;
-
-    document.querySelectorAll('#service-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+    currentView = 'inbox';
+    document.querySelectorAll('#service-tabs .tab-btn').forEach(b => b.classList.remove('active'));
     const tab = document.getElementById(`tab-${service}`);
     if (tab) tab.classList.add('active');
-
-    renderMessages([]);
+    showInbox();
     loadMailboxes(service);
 }
 
-// ============================================
-// Загрузка ящиков
-// ============================================
+// ──────────────────────────────────────
+// Mailbox sidebar
+// ──────────────────────────────────────
 
 async function loadMailboxes(service) {
-    const listEl = document.getElementById('mailbox-list');
-    listEl.innerHTML = '<div class="skeleton-text" style="height:40px;margin-bottom:8px"></div>'.repeat(3);
-
+    const el = document.getElementById('mailbox-list');
+    el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted)">Загрузка...</div>';
     try {
         const data = await api.get(`/mailbox/list?service=${encodeURIComponent(service)}`);
-        mailboxes = Array.isArray(data) ? data : (data.mailboxes || data.data || []);
+        mailboxes = data.items || data.mailboxes || data.data || [];
         renderMailboxes();
     } catch (e) {
-        listEl.innerHTML = '';
-        toast.error('Ошибка загрузки ящиков');
+        el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted)">Ошибка загрузки</div>';
     }
 }
 
 function renderMailboxes() {
-    const listEl = document.getElementById('mailbox-list');
-    const countEl = document.getElementById('mailbox-count');
-    if (countEl) countEl.textContent = mailboxes.length;
+    const el = document.getElementById('mailbox-list');
+    document.getElementById('mailbox-count').textContent = `(${mailboxes.length})`;
 
     if (!mailboxes.length) {
-        listEl.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">📭</div>
-                <div class="empty-state-title">Нет ящиков</div>
-                <p class="empty-state-description">Создайте первый ящик</p>
-            </div>`;
+        el.innerHTML = '<div style="padding:40px 16px;text-align:center;color:var(--text-muted)"><div style="font-size:2rem;margin-bottom:8px;">📭</div>Нет ящиков</div>';
         return;
     }
 
-    listEl.innerHTML = mailboxes.map(mb => {
+    el.innerHTML = mailboxes.map(mb => {
         const id = mb.id || mb.mailbox_id || '';
         const email = mb.email || mb.address || id;
-        const selected = id === selectedMailboxId ? ' style="background:var(--bg-tertiary)"' : '';
-        return `<div class="mailbox-row" data-id="${id}"${selected} onclick="viewMailbox('${id}')">
-            <span class="mailbox-email" title="${email}">${email}</span>
-            <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation(); deleteMailbox('${id}')" title="Удалить">🗑️</button>
+        const initial = email.charAt(0).toUpperCase();
+        const active = id === selectedMailboxId ? ' active' : '';
+        const date = mb.created_at ? new Date(mb.created_at).toLocaleDateString('ru-RU') : '';
+        return `<div class="mail-sidebar-item${active}" onclick="viewMailbox('${id}')">
+            <div class="mail-avatar">${initial}</div>
+            <div class="mail-info">
+                <div class="mail-addr">${esc(email)}</div>
+                <div class="mail-meta">${date}</div>
+            </div>
+            <button class="mail-del" onclick="event.stopPropagation();deleteMailbox('${id}')" title="Удалить">🗑️</button>
         </div>`;
     }).join('');
 }
 
-// ============================================
-// Просмотр сообщений
-// ============================================
+// ──────────────────────────────────────
+// Inbox — message list
+// ──────────────────────────────────────
+
+function showInbox() {
+    currentView = 'inbox';
+    const toolbar = document.getElementById('mail-toolbar');
+    const mb = mailboxes.find(m => (m.id || m.mailbox_id) === selectedMailboxId);
+    const label = mb ? (mb.email || mb.address) : 'Входящие';
+    toolbar.innerHTML = `
+        <h3 id="toolbar-title">📨 ${esc(label)}</h3>
+        <button class="btn btn-ghost btn-sm" onclick="refreshMessages()" title="Обновить">🔄</button>
+    `;
+    renderMessageList();
+}
 
 async function viewMailbox(mailboxId) {
     selectedMailboxId = mailboxId;
+    currentView = 'inbox';
     renderMailboxes();
 
-    const mb = mailboxes.find(m => (m.id || m.mailbox_id) === mailboxId);
-    const label = mb ? (mb.email || mb.address || mailboxId) : mailboxId;
-    document.getElementById('messages-title').textContent = `Входящие для ${label}`;
+    const content = document.getElementById('mail-content');
+    content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">Загрузка сообщений...</div>';
 
-    const msgEl = document.getElementById('messages-list');
-    msgEl.innerHTML = '<div class="skeleton-text" style="height:60px;margin-bottom:8px"></div>'.repeat(3);
+    const mb = mailboxes.find(m => (m.id || m.mailbox_id) === mailboxId);
+    const label = mb ? (mb.email || mb.address) : mailboxId;
+    document.getElementById('mail-toolbar').innerHTML = `
+        <h3 id="toolbar-title">📨 ${esc(label)}</h3>
+        <button class="btn btn-ghost btn-sm" onclick="refreshMessages()" title="Обновить">🔄</button>
+    `;
 
     try {
         const data = await api.get(`/mailbox/messages?service=${encodeURIComponent(currentService)}&mailbox_id=${encodeURIComponent(mailboxId)}`);
-        const messages = Array.isArray(data) ? data : (data.messages || data.data || []);
-        renderMessages(messages);
+        currentMessages = data.messages || data.items || data.data || [];
+        renderMessageList();
     } catch (e) {
-        msgEl.innerHTML = '';
-        toast.error('Ошибка загрузки сообщений');
+        content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)">Ошибка загрузки</div>';
     }
 }
 
-function renderMessages(messages) {
-    const msgEl = document.getElementById('messages-list');
-
-    if (!messages.length) {
-        msgEl.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">📬</div>
-                <div class="empty-state-title">Нет сообщений</div>
-                <p class="empty-state-description">${selectedMailboxId ? 'Входящих пока нет' : 'Выберите ящик слева'}</p>
-            </div>`;
+function renderMessageList() {
+    const el = document.getElementById('mail-content');
+    if (!currentMessages.length) {
+        el.innerHTML = `<div style="padding:60px 16px;text-align:center;color:var(--text-muted)">
+            <div style="font-size:3rem;margin-bottom:12px;">📬</div>
+            <div>Нет входящих сообщений</div>
+        </div>`;
         return;
     }
 
-    msgEl.innerHTML = messages.map((msg, idx) => {
+    el.innerHTML = currentMessages.map((msg, i) => {
         const from = msg.from || msg.from_addr || msg.sender || '—';
         const subject = msg.subject || '(без темы)';
         const body = msg.text || msg.body || msg.html || '';
+        const snippet = body.length > 80 ? body.substring(0, 80).replace(/\n/g, ' ') + '…' : body.replace(/\n/g, ' ');
         const date = msg.date || msg.created_at || msg.received_at || '';
-        const formattedDate = date ? new Date(date).toLocaleString('ru-RU') : '';
-        const preview = body.length > 150 ? body.substring(0, 150) + '…' : body;
-        const hasMore = body.length > 150;
+        const time = date ? formatDate(date) : '';
 
-        return `<div class="message-card" onclick="toggleMessage(${idx})" style="cursor:pointer">
-            <div class="message-header">
-                <span class="message-from">От: <strong>${escapeHtml(from)}</strong></span>
-                <span class="message-date">${formattedDate}</span>
-            </div>
-            <div class="message-subject">📩 ${escapeHtml(subject)}</div>
-            <div class="message-preview" id="msg-preview-${idx}">${escapeHtml(preview)}</div>
-            <div class="message-full" id="msg-full-${idx}" style="display:none; margin-top:8px; padding:12px; background:var(--bg-secondary); border-radius:8px; white-space:pre-wrap; font-size:0.9em; max-height:500px; overflow-y:auto;">${escapeHtml(body)}</div>
-            ${hasMore ? `<div class="message-toggle" id="msg-toggle-${idx}" style="margin-top:4px; color:var(--primary); font-size:0.85em;">▸ Показать полностью</div>` : ''}
+        return `<div class="msg-row unread" onclick="openMessage(${i})">
+            <div class="msg-sender">${esc(from)}</div>
+            <div class="msg-subject">${esc(subject)} <span class="msg-snippet">— ${esc(snippet)}</span></div>
+            <div class="msg-time">${time}</div>
         </div>`;
     }).join('');
 }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+// ──────────────────────────────────────
+// Reading view — single message
+// ──────────────────────────────────────
+
+function openMessage(index) {
+    const msg = currentMessages[index];
+    if (!msg) return;
+
+    currentView = 'reading';
+    const from = msg.from || msg.from_addr || msg.sender || '—';
+    const subject = msg.subject || '(без темы)';
+    const body = msg.text || msg.body || msg.html || '';
+    const date = msg.date || msg.created_at || msg.received_at || '';
+    const fullDate = date ? new Date(date).toLocaleString('ru-RU') : '';
+    const initial = from.charAt(0).toUpperCase();
+
+    // Update toolbar with back button
+    document.getElementById('mail-toolbar').innerHTML = `
+        <button class="btn-back" onclick="backToInbox()" title="Назад">← Назад</button>
+        <h3 style="flex:1;margin:0;font-size:0.9rem;color:var(--text-muted);">Сообщение ${index + 1} из ${currentMessages.length}</h3>
+    `;
+
+    // Render full message
+    document.getElementById('mail-content').innerHTML = `
+        <div class="msg-view">
+            <div class="msg-view-subject">${esc(subject)}</div>
+            <div class="msg-view-header">
+                <div class="msg-view-avatar">${initial}</div>
+                <div>
+                    <div class="msg-view-sender">${esc(from)}</div>
+                    <div class="msg-view-email">кому: мне</div>
+                </div>
+                <div class="msg-view-date">${fullDate}</div>
+            </div>
+            <div class="msg-view-body">${esc(body)}</div>
+        </div>
+    `;
 }
 
-function toggleMessage(idx) {
-    const preview = document.getElementById(`msg-preview-${idx}`);
-    const full = document.getElementById(`msg-full-${idx}`);
-    const toggle = document.getElementById(`msg-toggle-${idx}`);
-    if (!full) return;
-
-    const isOpen = full.style.display !== 'none';
-    if (isOpen) {
-        full.style.display = 'none';
-        if (preview) preview.style.display = '';
-        if (toggle) toggle.textContent = '▸ Показать полностью';
-    } else {
-        full.style.display = '';
-        if (preview) preview.style.display = 'none';
-        if (toggle) toggle.textContent = '▾ Свернуть';
-    }
+function backToInbox() {
+    showInbox();
 }
 
-// ============================================
-// Создание ящика
-// ============================================
+// ──────────────────────────────────────
+// Actions
+// ──────────────────────────────────────
 
 async function createMailbox() {
-    if (!currentService) {
-        toast.warning('Сначала выберите сервис');
-        return;
-    }
-
+    if (!currentService) { toast.warning('Выберите сервис'); return; }
     try {
         await api.post('/mailbox/create', { service: currentService });
         toast.success('Ящик создан');
         loadMailboxes(currentService);
     } catch (e) {
-        toast.error('Ошибка создания ящика');
+        toast.error('Ошибка создания');
     }
 }
 
-// ============================================
-// Удаление ящика
-// ============================================
-
 async function deleteMailbox(mailboxId) {
-    if (!currentService) return;
-    if (!confirm('Удалить этот почтовый ящик?')) return;
-
+    if (!currentService || !confirm('Удалить ящик?')) return;
     try {
         await api.delete('/mailbox/delete', { service: currentService, mailbox_id: mailboxId });
         toast.success('Ящик удалён');
         if (selectedMailboxId === mailboxId) {
             selectedMailboxId = null;
-            renderMessages([]);
-            document.getElementById('messages-title').textContent = 'Входящие';
+            currentMessages = [];
+            showInbox();
         }
         loadMailboxes(currentService);
     } catch (e) {
-        toast.error('Ошибка удаления ящика');
+        toast.error('Ошибка удаления');
     }
 }
 
-// ============================================
-// Обновление
-// ============================================
+async function refreshMessages() {
+    if (selectedMailboxId) viewMailbox(selectedMailboxId);
+}
 
 async function refreshMailboxes() {
-    if (!currentService) return;
-    loadMailboxes(currentService);
+    if (currentService) loadMailboxes(currentService);
+}
+
+// ──────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────
+
+function esc(str) {
+    if (!str) return '';
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function formatDate(dateStr) {
+    try {
+        const d = new Date(dateStr);
+        const now = new Date();
+        const isToday = d.toDateString() === now.toDateString();
+        if (isToday) return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    } catch { return dateStr; }
 }
